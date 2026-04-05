@@ -1312,6 +1312,309 @@ def generate_format_validation_scenario(seed: Optional[int] = None) -> TaskScena
     return _response_scenario_b()
 
 
+# ── Expert Task 2 — cross-field constraint validation ─────────────────────
+#
+# Violations require multi-field reasoning: arithmetic, date ordering, and
+# conditional requirements.  Standard schema validators cannot catch these;
+# an agent must actively compute and cross-reference values.
+
+
+def generate_cross_field_scenario(seed: Optional[int] = None) -> TaskScenario:
+    """Expert scenario: 7 cross-field constraint violations.
+
+    Requires the agent to:
+    - Verify arithmetic (line_total = quantity * unit_price)
+    - Check date ordering (due_date after invoice_date)
+    - Validate computed totals (tax_amount = subtotal * tax_rate)
+    - Enforce conditional rules (trial accounts: discount_amount = 0)
+    - Count array elements (item_count = len(line_items))
+
+    seed is accepted for API uniformity but not used (single canonical scenario).
+    """
+    api_spec: Dict[str, Any] = {
+        "openapi": "3.0.3",
+        "info": {"title": "Invoice Service API", "version": "1.0.0"},
+        "paths": {
+            "/invoices": {
+                "post": {
+                    "summary": "Create a new invoice",
+                    "description": (
+                        "Cross-field constraints (not expressible in JSON Schema): "
+                        "(1) due_date must be strictly after invoice_date. "
+                        "(2) Each line_items[N].line_total must equal quantity * unit_price. "
+                        "(3) billing.subtotal must equal the sum of all line_items[N].line_total values. "
+                        "(4) billing.tax_amount must equal billing.subtotal * billing.tax_rate. "
+                        "(5) billing.total must equal billing.subtotal + billing.tax_amount - billing.discount_amount. "
+                        "(6) billing.item_count must equal the number of elements in the line_items array. "
+                        "(7) If customer.account_type is 'trial', billing.discount_amount must be 0."
+                    ),
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "invoice_date",
+                                        "due_date",
+                                        "customer",
+                                        "line_items",
+                                        "billing",
+                                    ],
+                                    "properties": {
+                                        "invoice_date": {
+                                            "type": "string",
+                                            "format": "date",
+                                        },
+                                        "due_date": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "description": "Must be strictly after invoice_date",
+                                        },
+                                        "customer": {
+                                            "type": "object",
+                                            "required": ["id", "name", "account_type"],
+                                            "properties": {
+                                                "id": {"type": "integer"},
+                                                "name": {"type": "string"},
+                                                "account_type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "trial",
+                                                        "standard",
+                                                        "premium",
+                                                        "enterprise",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        "line_items": {
+                                            "type": "array",
+                                            "minItems": 1,
+                                            "items": {
+                                                "type": "object",
+                                                "required": [
+                                                    "description",
+                                                    "quantity",
+                                                    "unit_price",
+                                                    "line_total",
+                                                ],
+                                                "properties": {
+                                                    "description": {"type": "string"},
+                                                    "quantity": {
+                                                        "type": "integer",
+                                                        "minimum": 1,
+                                                    },
+                                                    "unit_price": {
+                                                        "type": "number",
+                                                        "minimum": 0,
+                                                    },
+                                                    "line_total": {
+                                                        "type": "number",
+                                                        "description": "Must equal quantity * unit_price",
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        "billing": {
+                                            "type": "object",
+                                            "required": [
+                                                "subtotal",
+                                                "tax_rate",
+                                                "tax_amount",
+                                                "discount_amount",
+                                                "total",
+                                                "item_count",
+                                                "currency",
+                                            ],
+                                            "properties": {
+                                                "subtotal": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                    "description": "Sum of all line_items[N].line_total",
+                                                },
+                                                "tax_rate": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                    "maximum": 1,
+                                                },
+                                                "tax_amount": {
+                                                    "type": "number",
+                                                    "description": "Must equal subtotal * tax_rate",
+                                                },
+                                                "discount_amount": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                    "description": "Must be 0 when customer.account_type is 'trial'",
+                                                },
+                                                "total": {
+                                                    "type": "number",
+                                                    "description": "Must equal subtotal + tax_amount - discount_amount",
+                                                },
+                                                "item_count": {
+                                                    "type": "integer",
+                                                    "description": "Must equal number of elements in line_items",
+                                                },
+                                                "currency": {
+                                                    "type": "string",
+                                                    "enum": ["USD", "EUR", "GBP", "INR"],
+                                                },
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                }
+            }
+        },
+    }
+
+    # Planted violations (7):
+    # 1  due_date before invoice_date
+    # 2  line_items[0].line_total arithmetic wrong  (80 ≠ 3 × 25)
+    # 3  billing.subtotal wrong                     (200 ≠ 80+49.99+60 = 189.99)
+    # 4  billing.tax_amount wrong                   (14.40 ≠ 200 × 0.08 = 16.00)
+    # 5  billing.item_count wrong                   (4 ≠ 3)
+    # 6  billing.discount_amount > 0 for trial      (25 ≠ 0)
+    # 7  billing.total inconsistent                 (195 ≠ 200+14.40-25 = 189.40)
+    payload: Dict[str, Any] = {
+        "invoice_date": "2024-03-15",
+        "due_date": "2024-03-10",        # VIOLATION 1 — before invoice_date
+        "customer": {
+            "id": 1042,
+            "name": "Acme Corp",
+            "account_type": "trial",     # triggers VIOLATION 6
+        },
+        "line_items": [
+            {
+                "description": "Cloud Storage 100 GB/mo",
+                "quantity": 3,
+                "unit_price": 25.00,
+                "line_total": 80.00,     # VIOLATION 2 — should be 3 × 25.00 = 75.00
+            },
+            {
+                "description": "API Calls 1M/mo",
+                "quantity": 1,
+                "unit_price": 49.99,
+                "line_total": 49.99,     # valid
+            },
+            {
+                "description": "Support Package",
+                "quantity": 2,
+                "unit_price": 30.00,
+                "line_total": 60.00,     # valid
+            },
+        ],
+        "billing": {
+            "subtotal": 200.00,          # VIOLATION 3 — sum of line_totals = 189.99
+            "tax_rate": 0.08,
+            "tax_amount": 14.40,         # VIOLATION 4 — should be 200.00 × 0.08 = 16.00
+            "discount_amount": 25.00,   # VIOLATION 6 — trial account; must be 0
+            "total": 195.00,             # VIOLATION 7 — should be 200+14.40-25 = 189.40
+            "item_count": 4,             # VIOLATION 5 — 3 line_items, not 4
+            "currency": "USD",
+        },
+    }
+
+    violations = [
+        PlantedViolation(
+            field_path="due_date",
+            violation_type="cross_field_constraint",
+            description=(
+                "due_date '2024-03-10' is before invoice_date '2024-03-15'; "
+                "due_date must be strictly after invoice_date."
+            ),
+            expected_value="date after 2024-03-15",
+            actual_value="2024-03-10",
+        ),
+        PlantedViolation(
+            field_path="line_items[0].line_total",
+            violation_type="cross_field_constraint",
+            description=(
+                "line_items[0].line_total is 80.00 but "
+                "quantity(3) × unit_price(25.00) = 75.00."
+            ),
+            expected_value="75.00",
+            actual_value="80.00",
+        ),
+        PlantedViolation(
+            field_path="billing.subtotal",
+            violation_type="cross_field_constraint",
+            description=(
+                "billing.subtotal is 200.00 but the sum of line_totals "
+                "(80.00 + 49.99 + 60.00) = 189.99."
+            ),
+            expected_value="189.99",
+            actual_value="200.00",
+        ),
+        PlantedViolation(
+            field_path="billing.tax_amount",
+            violation_type="cross_field_constraint",
+            description=(
+                "billing.tax_amount is 14.40 but "
+                "billing.subtotal(200.00) × tax_rate(0.08) = 16.00."
+            ),
+            expected_value="16.00",
+            actual_value="14.40",
+        ),
+        PlantedViolation(
+            field_path="billing.item_count",
+            violation_type="cross_field_constraint",
+            description=(
+                "billing.item_count is 4 but there are 3 elements in line_items."
+            ),
+            expected_value="3",
+            actual_value="4",
+        ),
+        PlantedViolation(
+            field_path="billing.discount_amount",
+            violation_type="cross_field_constraint",
+            description=(
+                "billing.discount_amount is 25.00 but customer.account_type "
+                "is 'trial'; trial accounts must have discount_amount = 0."
+            ),
+            expected_value="0",
+            actual_value="25.00",
+        ),
+        PlantedViolation(
+            field_path="billing.total",
+            violation_type="cross_field_constraint",
+            description=(
+                "billing.total is 195.00 but "
+                "subtotal(200.00) + tax_amount(14.40) - discount_amount(25.00) = 189.40."
+            ),
+            expected_value="189.40",
+            actual_value="195.00",
+        ),
+    ]
+
+    return TaskScenario(
+        task_name="validate_cross_field_constraints",
+        task_description=(
+            "You are given an API spec for POST /invoices and a request payload. "
+            "The spec defines cross-field constraints that cannot be checked by "
+            "standard JSON Schema validation. You must actively compute and "
+            "cross-reference values to find violations. "
+            "Constraints to check: "
+            "(1) due_date must be strictly after invoice_date. "
+            "(2) Each line_items[N].line_total must equal quantity × unit_price. "
+            "(3) billing.subtotal must equal the sum of all line_items[N].line_total. "
+            "(4) billing.tax_amount must equal billing.subtotal × billing.tax_rate. "
+            "(5) billing.total must equal billing.subtotal + billing.tax_amount - billing.discount_amount. "
+            "(6) billing.item_count must equal the number of elements in line_items. "
+            "(7) If customer.account_type is 'trial', billing.discount_amount must be 0. "
+            "Use violation_type='cross_field_constraint' for these. "
+            "Report one violation per step. Submit field_path='DONE' when finished."
+        ),
+        api_spec=api_spec,
+        payload=payload,
+        violations=violations,
+        max_steps=18,
+    )
+
+
 # ── Registry ──────────────────────────────────────────────────────────────
 
 TASK_GENERATORS = {
@@ -1319,6 +1622,7 @@ TASK_GENERATORS = {
     "validate_nested_objects": generate_medium_scenario,
     "detect_breaking_changes": generate_hard_scenario,
     "validate_response_schema": generate_format_validation_scenario,
+    "validate_cross_field_constraints": generate_cross_field_scenario,
 }
 
 AVAILABLE_TASKS = list(TASK_GENERATORS.keys())

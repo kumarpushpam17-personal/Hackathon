@@ -41,12 +41,14 @@ TASKS = [
     "validate_nested_objects",
     "detect_breaking_changes",
     "validate_response_schema",
+    "validate_cross_field_constraints",
 ]
 MAX_STEPS_PER_TASK = {
     "find_type_mismatches": 10,
     "validate_nested_objects": 15,
     "detect_breaking_changes": 20,
     "validate_response_schema": 25,
+    "validate_cross_field_constraints": 18,
 }
 TEMPERATURE = 0.2
 MAX_TOKENS = 1024
@@ -98,7 +100,7 @@ Each turn you must respond with EXACTLY one JSON object (no markdown, no \
 explanation outside the JSON) with these fields:
 {
     "field_path": "<dot-notation path to the violated field, or 'DONE' if no more violations>",
-    "violation_type": "<type_mismatch|missing_required|invalid_enum|format_error|extra_field|breaking_change>",
+    "violation_type": "<type_mismatch|missing_required|invalid_enum|format_error|extra_field|breaking_change|cross_field_constraint>",
     "description": "<brief explanation>",
     "suggested_fix": "<how to fix it>"
 }
@@ -110,6 +112,8 @@ Rules:
 - For breaking changes use: 'METHOD /path.field' e.g. 'POST /products.price'
 - When you have found all violations, respond with field_path set to 'DONE'.
 - Do NOT repeat a violation you already reported.
+- For cross-field constraints (arithmetic, date ordering, conditional requirements), use violation_type='cross_field_constraint'.
+- You may submit field_path='HINT' to receive a location hint at a cost of -0.5 reward.
 """)
 
 
@@ -303,7 +307,11 @@ async def main() -> None:
     """Run the inference agent against all tasks."""
     openai_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
-    env = await ValidatorEnv.from_docker_image(IMAGE_NAME)
+    if IMAGE_NAME:
+        env = await ValidatorEnv.from_docker_image(IMAGE_NAME)
+    else:
+        env_url = os.getenv("ENV_BASE_URL", "http://localhost:7860")
+        env = ValidatorEnv(base_url=env_url)
 
     try:
         for task_name in TASKS:

@@ -5,6 +5,10 @@ The agent validates API payloads against OpenAPI specifications by
 reporting violations one at a time.  The environment grades each
 report against planted ground-truth violations and provides partial
 reward signals.
+
+Special field_path values:
+  'DONE' — end the episode and collect the completeness bonus
+  'HINT' — receive a location hint (costs -0.5 reward)
 """
 
 from typing import Any, Dict, List, Optional, Set
@@ -44,12 +48,10 @@ def _find_matching_violation(
     reported_type: str,
     ground_truth: List[PlantedViolation],
 ) -> Optional[PlantedViolation]:
-    """Return the first ground-truth violation that matches the report.
+    """Return the first ground-truth violation that matches both path and type.
 
-    Matching is intentionally lenient: paths are compared after
-    normalisation and the ``violation_type`` is checked with a
-    substring match so agents don't need to produce the exact enum
-    string.
+    Matching is intentionally lenient: paths are compared after normalisation
+    and violation_type uses substring matching.
     """
     norm_path = _normalise_path(reported_path)
     norm_type = reported_type.strip().lower()
@@ -70,6 +72,54 @@ def _find_matching_violation(
     return None
 
 
+def _find_path_only_match(
+    reported_path: str,
+    ground_truth: List[PlantedViolation],
+    already_matched: Set[str],
+    already_proximity: Set[str],
+) -> Optional[PlantedViolation]:
+    """Return a violation whose path matches but has not yet been fully matched.
+
+    Used for the proximity reward: agent found the right field but wrong type.
+    Ignores violations that have already been correctly reported OR already
+    received a proximity reward (to prevent reward farming).
+    """
+    norm_path = _normalise_path(reported_path)
+
+    for violation in ground_truth:
+        gt_path = _normalise_path(violation.field_path)
+        if gt_path in already_matched or gt_path in already_proximity:
+            continue
+        path_match = (norm_path == gt_path) or (
+            norm_path in gt_path or gt_path in norm_path
+        )
+        if path_match:
+            return violation
+    return None
+
+
+def _hint_section(field_path: str) -> str:
+    """Extract the top-level section name from a field path.
+
+    Examples:
+        'customer.email'           → 'customer'
+        'items[1].quantity'        → 'items'
+        'billing.tax_rate'         → 'billing'
+        'due_date'                 → 'due_date'
+        'POST /products.price'     → 'POST /products'
+    """
+    path = field_path.strip()
+    # Handle breaking-change paths like "POST /products.price"
+    if path.startswith(("GET ", "POST ", "PUT ", "PATCH ", "DELETE ")):
+        dot_idx = path.find(".")
+        return path[:dot_idx] if dot_idx != -1 else path
+    # Standard paths: split on first dot or bracket
+    for i, ch in enumerate(path):
+        if ch in (".", "["):
+            return path[:i]
+    return path
+
+
 class ValidatorEnvironment(Environment):
     """API Contract Validator — an OpenEnv RL environment.
 
@@ -79,11 +129,14 @@ class ValidatorEnvironment(Environment):
     step.  The episode ends when the agent sends ``DONE`` or exhausts its
     step budget.
 
+    Special actions:
+      field_path='DONE'  — end episode, collect completeness bonus
+      field_path='HINT'  — receive a location hint, pay -0.5 reward
+
     Attributes
     ----------
     SUPPORTS_CONCURRENT_SESSIONS : bool
-        ``True`` — each WebSocket connection gets its own environment
-        instance with isolated state.
+        True — each WebSocket connection gets its own isolated instance.
     """
 
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
@@ -93,6 +146,7 @@ class ValidatorEnvironment(Environment):
         self._state = ValidatorState()
         self._scenario: Optional[TaskScenario] = None
         self._matched_paths: Set[str] = set()
+        self._proximity_paths: Set[str] = set()
         self._reported_violations: List[Dict[str, str]] = []
         self._task_index: int = 0
 
@@ -116,6 +170,7 @@ class ValidatorEnvironment(Environment):
 
         self._scenario = generate_scenario_for_task(task_name, seed=seed)
         self._matched_paths = set()
+        self._proximity_paths = set()
         self._reported_violations = []
 
         self._state = ValidatorState(
@@ -146,7 +201,7 @@ class ValidatorEnvironment(Environment):
 
     def step(
         self,
-        action: ValidatorAction,  # type: ignore[override]
+        action: ValidatorAction,
         timeout_s: Optional[float] = None,
         **kwargs: Any,
     ) -> ValidatorObservation:
@@ -155,12 +210,43 @@ class ValidatorEnvironment(Environment):
             raise RuntimeError("Call reset() before step().")
 
         self._state.step_count += 1
-        is_done_signal = action.field_path.strip().upper() == "DONE"
+        signal = action.field_path.strip().upper()
 
-        # ── Handle DONE signal ────────────────────────────────────────
-        if is_done_signal:
+        # ── HINT request ──────────────────────────────────────────────
+        if signal == "HINT":
+            remaining = [
+                v for v in self._scenario.violations
+                if _normalise_path(v.field_path) not in self._matched_paths
+            ]
+            if remaining:
+                section = _hint_section(remaining[0].field_path)
+                hint_msg = (
+                    f"Hint: An undetected violation is in the '{section}' section. "
+                    f"(-0.5 reward)"
+                )
+            else:
+                hint_msg = "All violations have already been found. Submit DONE."
+
             breakdown = compute_step_reward(
                 is_correct=False,
+                is_path_match=False,
+                is_duplicate=False,
+                is_done_signal=False,
+                is_hint=True,
+                correct_so_far=self._state.correct_reports,
+                total_violations=self._state.total_violations,
+            )
+            return self._build_observation(
+                reward=breakdown.reward,
+                done=False,
+                feedback=hint_msg,
+            )
+
+        # ── DONE signal ───────────────────────────────────────────────
+        if signal == "DONE":
+            breakdown = compute_step_reward(
+                is_correct=False,
+                is_path_match=False,
                 is_duplicate=False,
                 is_done_signal=True,
                 correct_so_far=self._state.correct_reports,
@@ -176,11 +262,12 @@ class ValidatorEnvironment(Environment):
                 feedback=breakdown.explanation,
             )
 
-        # ── Check for duplicate ───────────────────────────────────────
+        # ── Duplicate check ───────────────────────────────────────────
         norm_reported = _normalise_path(action.field_path)
         if norm_reported in self._matched_paths:
             breakdown = compute_step_reward(
                 is_correct=False,
+                is_path_match=False,
                 is_duplicate=True,
                 is_done_signal=False,
                 correct_so_far=self._state.correct_reports,
@@ -193,7 +280,7 @@ class ValidatorEnvironment(Environment):
                 feedback=breakdown.explanation,
             )
 
-        # ── Match against ground truth ────────────────────────────────
+        # ── Full match (path + type) ──────────────────────────────────
         matched = _find_matching_violation(
             action.field_path,
             action.violation_type,
@@ -201,7 +288,9 @@ class ValidatorEnvironment(Environment):
         )
 
         if matched is not None:
-            self._matched_paths.add(_normalise_path(matched.field_path))
+            gt_path = _normalise_path(matched.field_path)
+            self._matched_paths.add(gt_path)
+            self._proximity_paths.discard(gt_path)
             self._state.correct_reports += 1
             self._reported_violations.append(
                 {
@@ -212,25 +301,79 @@ class ValidatorEnvironment(Environment):
             )
             breakdown = compute_step_reward(
                 is_correct=True,
-                is_duplicate=False,
-                is_done_signal=False,
-                correct_so_far=self._state.correct_reports,
-                total_violations=self._state.total_violations,
-            )
-        else:
-            self._state.false_positives += 1
-            breakdown = compute_step_reward(
-                is_correct=False,
+                is_path_match=False,
                 is_duplicate=False,
                 is_done_signal=False,
                 correct_so_far=self._state.correct_reports,
                 total_violations=self._state.total_violations,
             )
 
-        # ── Check if all violations found ─────────────────────────────
-        all_found = self._state.correct_reports >= self._state.total_violations
+            all_found = self._state.correct_reports >= self._state.total_violations
+            steps_exhausted = self._state.step_count >= self._scenario.max_steps
+            done = all_found or steps_exhausted
+
+            if done:
+                self._state.score = compute_episode_score(
+                    self._state.correct_reports,
+                    self._state.total_violations,
+                )
+
+            feedback = breakdown.explanation
+            if all_found:
+                feedback += " All violations found — episode complete!"
+            elif steps_exhausted:
+                remaining = self._state.total_violations - self._state.correct_reports
+                feedback += f" Step limit reached. {remaining} violation(s) missed."
+
+            return self._build_observation(
+                reward=breakdown.reward,
+                done=done,
+                feedback=feedback,
+            )
+
+        # ── Proximity match (right path, wrong type) ──────────────────
+        path_match = _find_path_only_match(
+            action.field_path,
+            self._scenario.violations,
+            self._matched_paths,
+            self._proximity_paths,
+        )
+
+        if path_match is not None:
+            self._proximity_paths.add(_normalise_path(path_match.field_path))
+            breakdown = compute_step_reward(
+                is_correct=False,
+                is_path_match=True,
+                is_duplicate=False,
+                is_done_signal=False,
+                correct_so_far=self._state.correct_reports,
+                total_violations=self._state.total_violations,
+            )
+            steps_exhausted = self._state.step_count >= self._scenario.max_steps
+            if steps_exhausted:
+                self._state.score = compute_episode_score(
+                    self._state.correct_reports,
+                    self._state.total_violations,
+                )
+            return self._build_observation(
+                reward=breakdown.reward,
+                done=steps_exhausted,
+                feedback=breakdown.explanation,
+            )
+
+        # ── False positive ────────────────────────────────────────────
+        self._state.false_positives += 1
+        breakdown = compute_step_reward(
+            is_correct=False,
+            is_path_match=False,
+            is_duplicate=False,
+            is_done_signal=False,
+            correct_so_far=self._state.correct_reports,
+            total_violations=self._state.total_violations,
+        )
+
         steps_exhausted = self._state.step_count >= self._scenario.max_steps
-        done = all_found or steps_exhausted
+        done = steps_exhausted
 
         if done:
             self._state.score = compute_episode_score(
@@ -239,12 +382,8 @@ class ValidatorEnvironment(Environment):
             )
 
         feedback = breakdown.explanation
-        if all_found:
-            feedback += " All violations found — episode complete!"
-        elif steps_exhausted:
-            remaining = (
-                self._state.total_violations - self._state.correct_reports
-            )
+        if steps_exhausted:
+            remaining = self._state.total_violations - self._state.correct_reports
             feedback += f" Step limit reached. {remaining} violation(s) missed."
 
         return self._build_observation(

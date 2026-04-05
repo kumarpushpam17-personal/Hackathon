@@ -26,14 +26,16 @@ class ValidatorAction(Action):
         ...,
         description=(
             "Dot-notation path to the violated field, e.g. 'user.email'. "
-            "Use 'DONE' to signal no more violations to report."
+            "Use 'DONE' to signal no more violations. "
+            "Use 'HINT' to receive a location hint at -0.5 reward cost."
         ),
     )
     violation_type: str = Field(
         ...,
         description=(
             "Category of violation: type_mismatch | missing_required | "
-            "invalid_enum | format_error | extra_field | breaking_change"
+            "invalid_enum | format_error | extra_field | breaking_change | "
+            "cross_field_constraint"
         ),
     )
     description: str = Field(
