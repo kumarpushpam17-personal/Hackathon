@@ -38,13 +38,23 @@ step(violation_report) → Correct? +1.0 | False positive? -0.3 | Duplicate? -0.
 step(DONE) → Episode ends with completeness bonus
 ```
 
-## Tasks (3 difficulty levels)
+## Tasks (4 difficulty levels)
 
 | Task | Difficulty | Violations | Max Steps | What the Agent Must Find |
 |------|-----------|------------|-----------|--------------------------|
 | `find_type_mismatches` | Easy | 4 | 10 | Type mismatches, missing required fields, invalid enums at the top level |
 | `validate_nested_objects` | Medium | 7 | 15 | Violations inside nested objects and arrays — requires traversing deep structures |
 | `detect_breaking_changes` | Hard | 9 | 20 | Breaking changes between two API spec versions — type changes, removed fields, narrowed enums, new requirements |
+| `validate_response_schema` | Expert | 10 | 25 | Subtle format errors in an API response: invalid date formats, pattern mismatches, out-of-range numerics, and bad enum values scattered across nested objects and arrays |
+
+### Randomised Episode Generation
+
+All tasks support seed-based randomisation, making the environment suitable for **training** agents, not just evaluating them:
+
+- `find_type_mismatches` — samples 4 violations from a pool of 8 (70 unique combinations)
+- `validate_nested_objects` — two complete scenario variants (Order Service / Event Booking)
+- `validate_response_schema` — two complete scenario variants with different violation sets
+- Pass `seed` in the `reset()` call to select a deterministic episode
 
 ## Action Space
 

@@ -2,14 +2,23 @@
 Spec generator for the API Contract Validator Environment.
 
 Generates OpenAPI specifications, payloads with planted violations,
-and ground-truth violation records for three difficulty levels.
+and ground-truth violation records for four difficulty levels.
 
-Each generator returns a ``TaskScenario`` containing everything the
-environment needs for one episode.
+Each generator accepts an optional *seed* for deterministic randomisation:
+- seed=None  → fixed canonical scenario (backward-compatible)
+- seed=int   → reproducible randomised variant
+
+This makes the environment suitable for both evaluation (fixed seed) and
+training (varied seeds), which is the key distinction between a one-shot
+evaluator and a genuine RL training environment.
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
+import random
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+# Sentinel used in violation pool entries to signal "remove key from payload"
+_REMOVE = object()
 
 
 @dataclass
@@ -35,65 +44,94 @@ class TaskScenario:
     max_steps: int
 
 
-# ── Easy Task ─────────────────────────────────────────────────────────────
+# ── Easy Task — pool-based randomisation ──────────────────────────────────
+#
+# The spec exposes 8 fields.  Each episode seeds a random draw of 4 of the
+# 8 possible violations, giving 70 unique episode combinations — enough to
+# train an agent rather than just evaluate it once.
 
-
-def generate_easy_scenario() -> TaskScenario:
-    """Generate a scenario with obvious type mismatches and missing fields.
-
-    Violations are shallow (top-level fields) and easy to spot:
-    - String where integer is expected
-    - Missing required fields
-    - Wrong primitive types
-    """
-    api_spec = {
-        "openapi": "3.0.3",
-        "info": {"title": "User Service API", "version": "1.0.0"},
-        "paths": {
-            "/users": {
-                "post": {
-                    "summary": "Create a new user",
-                    "requestBody": {
-                        "required": True,
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "required": ["username", "email", "age", "is_active"],
-                                    "properties": {
-                                        "username": {"type": "string", "minLength": 3},
-                                        "email": {"type": "string", "format": "email"},
-                                        "age": {"type": "integer", "minimum": 0},
-                                        "is_active": {"type": "boolean"},
-                                        "role": {
-                                            "type": "string",
-                                            "enum": ["admin", "editor", "viewer"],
-                                        },
+_EASY_SPEC: Dict[str, Any] = {
+    "openapi": "3.0.3",
+    "info": {"title": "User Service API", "version": "1.0.0"},
+    "paths": {
+        "/users": {
+            "post": {
+                "summary": "Create a new user",
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["username", "email", "age", "is_active"],
+                                "properties": {
+                                    "username": {
+                                        "type": "string",
+                                        "minLength": 3,
+                                        "maxLength": 32,
                                     },
-                                }
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                    },
+                                    "age": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 120,
+                                    },
+                                    "is_active": {"type": "boolean"},
+                                    "role": {
+                                        "type": "string",
+                                        "enum": ["admin", "editor", "viewer"],
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "pattern": r"^\+[1-9][0-9]{7,14}$",
+                                    },
+                                    "account_balance": {
+                                        "type": "number",
+                                        "minimum": 0.0,
+                                    },
+                                    "terms_accepted": {"type": "boolean"},
+                                },
                             }
-                        },
+                        }
                     },
-                }
+                },
             }
-        },
-    }
+        }
+    },
+}
 
-    payload = {
-        "username": "ab",
-        "age": "twenty-five",
-        "is_active": "yes",
-        "role": "superadmin",
-    }
+# Base payload — all fields valid.  Pool entries mutate specific keys.
+_EASY_VALID_PAYLOAD: Dict[str, Any] = {
+    "username": "alice_smith",
+    "email": "alice@example.com",
+    "age": 28,
+    "is_active": True,
+    "role": "editor",
+    "phone": "+14155551234",
+    "account_balance": 250.00,
+    "terms_accepted": True,
+}
 
-    violations = [
+# Pool: (top-level key, bad value or _REMOVE, PlantedViolation)
+# The first 4 entries reproduce the original fixed scenario (seed=None).
+_EASY_POOL: List[Tuple[str, Any, PlantedViolation]] = [
+    (
+        "email",
+        _REMOVE,
         PlantedViolation(
             field_path="email",
             violation_type="missing_required",
             description="Required field 'email' is missing from the payload.",
-            expected_value="(present, type: string)",
+            expected_value="(present, type: string, format: email)",
             actual_value="(missing)",
         ),
+    ),
+    (
+        "age",
+        "twenty-five",
         PlantedViolation(
             field_path="age",
             violation_type="type_mismatch",
@@ -101,6 +139,10 @@ def generate_easy_scenario() -> TaskScenario:
             expected_value="integer",
             actual_value="string ('twenty-five')",
         ),
+    ),
+    (
+        "is_active",
+        "yes",
         PlantedViolation(
             field_path="is_active",
             violation_type="type_mismatch",
@@ -108,43 +150,107 @@ def generate_easy_scenario() -> TaskScenario:
             expected_value="boolean",
             actual_value="string ('yes')",
         ),
+    ),
+    (
+        "role",
+        "superadmin",
         PlantedViolation(
             field_path="role",
             violation_type="invalid_enum",
-            description="Field 'role' value 'superadmin' is not in allowed enum.",
+            description="Value 'superadmin' is not in allowed enum [admin, editor, viewer].",
             expected_value="one of: admin, editor, viewer",
             actual_value="superadmin",
         ),
-    ]
+    ),
+    (
+        "phone",
+        "555-CALL-US",
+        PlantedViolation(
+            field_path="phone",
+            violation_type="format_error",
+            description="Field 'phone' contains letters; must match international format +E.164.",
+            expected_value=r"pattern: ^\+[1-9][0-9]{7,14}$",
+            actual_value="555-CALL-US",
+        ),
+    ),
+    (
+        "account_balance",
+        -50.00,
+        PlantedViolation(
+            field_path="account_balance",
+            violation_type="format_error",
+            description="Field 'account_balance' is -50.0, below the minimum of 0.",
+            expected_value="number >= 0",
+            actual_value="-50.0",
+        ),
+    ),
+    (
+        "terms_accepted",
+        "agreed",
+        PlantedViolation(
+            field_path="terms_accepted",
+            violation_type="type_mismatch",
+            description="Field 'terms_accepted' should be boolean but received string.",
+            expected_value="boolean",
+            actual_value="string ('agreed')",
+        ),
+    ),
+    (
+        "username",
+        "ab",
+        PlantedViolation(
+            field_path="username",
+            violation_type="format_error",
+            description="Field 'username' is 'ab' (length 2), below minLength of 3.",
+            expected_value="string, minLength: 3",
+            actual_value="'ab' (length 2)",
+        ),
+    ),
+]
+
+
+def generate_easy_scenario(seed: Optional[int] = None) -> TaskScenario:
+    """Easy scenario: 4 violations sampled from a pool of 8.
+
+    seed=None always returns the original canonical 4 violations.
+    Any integer seed reproducibly draws a different subset.
+    """
+    if seed is None:
+        selected = _EASY_POOL[:4]
+    else:
+        rng = random.Random(seed)
+        selected = rng.sample(_EASY_POOL, 4)
+
+    payload = dict(_EASY_VALID_PAYLOAD)
+    violations: List[PlantedViolation] = []
+    for key, bad_val, planted in selected:
+        if bad_val is _REMOVE:
+            payload.pop(key, None)
+        else:
+            payload[key] = bad_val
+        violations.append(planted)
 
     return TaskScenario(
         task_name="find_type_mismatches",
         task_description=(
             "You are given an OpenAPI specification and an API request payload. "
             "Find all violations in the payload: type mismatches, missing required "
-            "fields, and invalid enum values. Report one violation per step using "
-            "the field's dot-notation path. Submit field_path='DONE' when finished."
+            "fields, invalid enum values, and format errors. "
+            "Report one violation per step using the field's dot-notation path. "
+            "Submit field_path='DONE' when finished."
         ),
-        api_spec=api_spec,
+        api_spec=_EASY_SPEC,
         payload=payload,
         violations=violations,
         max_steps=10,
     )
 
 
-# ── Medium Task ───────────────────────────────────────────────────────────
+# ── Medium Task — two complete scenario variants ──────────────────────────
 
-
-def generate_medium_scenario() -> TaskScenario:
-    """Generate a scenario with nested object and array violations.
-
-    Violations span nested objects and arrays:
-    - Missing required fields inside nested objects
-    - Wrong types in array items
-    - Invalid enum in nested context
-    - Extra unexpected fields
-    """
-    api_spec = {
+def _medium_scenario_a() -> TaskScenario:
+    """Original Order Service scenario with 7 nested violations."""
+    api_spec: Dict[str, Any] = {
         "openapi": "3.0.3",
         "info": {"title": "Order Service API", "version": "2.1.0"},
         "paths": {
@@ -195,9 +301,7 @@ def generate_medium_scenario() -> TaskScenario:
                                                     "unit_price",
                                                 ],
                                                 "properties": {
-                                                    "product_id": {
-                                                        "type": "string"
-                                                    },
+                                                    "product_id": {"type": "string"},
                                                     "quantity": {
                                                         "type": "integer",
                                                         "minimum": 1,
@@ -246,7 +350,7 @@ def generate_medium_scenario() -> TaskScenario:
         },
     }
 
-    payload = {
+    payload: Dict[str, Any] = {
         "customer": {
             "id": "C-1001",
             "loyalty_tier": "diamond",
@@ -269,7 +373,7 @@ def generate_medium_scenario() -> TaskScenario:
             field_path="customer.email",
             violation_type="missing_required",
             description="Required field 'email' missing from 'customer' object.",
-            expected_value="(present, type: string)",
+            expected_value="(present, type: string, format: email)",
             actual_value="(missing)",
         ),
         PlantedViolation(
@@ -333,23 +437,242 @@ def generate_medium_scenario() -> TaskScenario:
     )
 
 
-# ── Hard Task ─────────────────────────────────────────────────────────────
+def _medium_scenario_b() -> TaskScenario:
+    """Alternate Event Booking scenario — different domain, 7 nested violations."""
+    api_spec: Dict[str, Any] = {
+        "openapi": "3.0.3",
+        "info": {"title": "Event Booking API", "version": "1.5.0"},
+        "paths": {
+            "/bookings": {
+                "post": {
+                    "summary": "Book an event",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["event", "attendees", "organizer", "payment"],
+                                    "properties": {
+                                        "event": {
+                                            "type": "object",
+                                            "required": ["id", "type", "capacity"],
+                                            "properties": {
+                                                "id": {"type": "integer"},
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "concert",
+                                                        "conference",
+                                                        "sports",
+                                                        "theater",
+                                                    ],
+                                                },
+                                                "capacity": {
+                                                    "type": "integer",
+                                                    "minimum": 1,
+                                                },
+                                                "date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                },
+                                            },
+                                        },
+                                        "attendees": {
+                                            "type": "array",
+                                            "minItems": 1,
+                                            "items": {
+                                                "type": "object",
+                                                "required": ["name", "email", "ticket_type"],
+                                                "properties": {
+                                                    "name": {"type": "string"},
+                                                    "email": {
+                                                        "type": "string",
+                                                        "format": "email",
+                                                    },
+                                                    "age": {
+                                                        "type": "integer",
+                                                        "minimum": 0,
+                                                        "maximum": 120,
+                                                    },
+                                                    "ticket_type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "vip",
+                                                            "standard",
+                                                            "economy",
+                                                        ],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        "organizer": {
+                                            "type": "object",
+                                            "required": ["name", "contact_email"],
+                                            "properties": {
+                                                "name": {"type": "string"},
+                                                "contact_email": {
+                                                    "type": "string",
+                                                    "format": "email",
+                                                },
+                                                "phone": {"type": "string"},
+                                            },
+                                        },
+                                        "payment": {
+                                            "type": "object",
+                                            "required": ["method", "total_amount"],
+                                            "properties": {
+                                                "method": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "card",
+                                                        "invoice",
+                                                        "cash",
+                                                    ],
+                                                },
+                                                "total_amount": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                },
+                                            },
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                }
+            }
+        },
+    }
+
+    payload: Dict[str, Any] = {
+        "event": {
+            "id": "EVT-001",
+            "type": "festival",
+            "capacity": 500,
+            "date": "2025-06-15",
+        },
+        "attendees": [
+            {
+                "name": "Sarah Chen",
+                "ticket_type": "vip",
+            },
+            {
+                "name": "Mark Rivera",
+                "email": "mark@example.com",
+                "age": 135,
+                "ticket_type": "premium",
+            },
+        ],
+        "organizer": {
+            "name": "LiveNation Events",
+            "contact_email": "organizer.example.com",
+            "phone": "+442071234567",
+        },
+        "payment": {
+            "method": "card",
+            "total_amount": "free",
+        },
+    }
+
+    violations = [
+        PlantedViolation(
+            field_path="event.id",
+            violation_type="type_mismatch",
+            description="Field 'event.id' should be integer, got string.",
+            expected_value="integer",
+            actual_value="string ('EVT-001')",
+        ),
+        PlantedViolation(
+            field_path="event.type",
+            violation_type="invalid_enum",
+            description="Value 'festival' not in enum [concert, conference, sports, theater].",
+            expected_value="one of: concert, conference, sports, theater",
+            actual_value="festival",
+        ),
+        PlantedViolation(
+            field_path="attendees[0].email",
+            violation_type="missing_required",
+            description="Required field 'email' missing from attendees[0].",
+            expected_value="(present, type: string, format: email)",
+            actual_value="(missing)",
+        ),
+        PlantedViolation(
+            field_path="attendees[1].age",
+            violation_type="format_error",
+            description="Field 'attendees[1].age' is 135, exceeds maximum of 120.",
+            expected_value="integer, maximum: 120",
+            actual_value="135",
+        ),
+        PlantedViolation(
+            field_path="attendees[1].ticket_type",
+            violation_type="invalid_enum",
+            description="Value 'premium' not in enum [vip, standard, economy].",
+            expected_value="one of: vip, standard, economy",
+            actual_value="premium",
+        ),
+        PlantedViolation(
+            field_path="organizer.contact_email",
+            violation_type="format_error",
+            description="Field 'organizer.contact_email' is not a valid email (missing @).",
+            expected_value="string, format: email",
+            actual_value="'organizer.example.com'",
+        ),
+        PlantedViolation(
+            field_path="payment.total_amount",
+            violation_type="type_mismatch",
+            description="Field 'payment.total_amount' should be number, got string.",
+            expected_value="number",
+            actual_value="string ('free')",
+        ),
+    ]
+
+    return TaskScenario(
+        task_name="validate_nested_objects",
+        task_description=(
+            "You are given an OpenAPI specification and an API request payload "
+            "with nested objects and arrays. Find all violations including type "
+            "mismatches in nested fields, missing required fields inside objects, "
+            "invalid enum values, format errors, and type errors in array items. "
+            "Use dot-notation for nested paths (e.g. 'organizer.contact_email') "
+            "and bracket notation for arrays (e.g. 'attendees[1].age'). "
+            "Submit field_path='DONE' when finished."
+        ),
+        api_spec=api_spec,
+        payload=payload,
+        violations=violations,
+        max_steps=15,
+    )
 
 
-def generate_hard_scenario() -> TaskScenario:
-    """Generate a scenario requiring detection of breaking API changes.
+def generate_medium_scenario(seed: Optional[int] = None) -> TaskScenario:
+    """Medium scenario: two complete variants selected by seed.
 
-    The agent receives two spec versions and must identify breaking changes:
-    - Removed fields that were previously available
-    - Type changes on existing fields
-    - Narrowed enums (values removed)
-    - New required fields added (breaking for existing clients)
-    - Changed format constraints
+    seed=None or even seed → Order Service (variant A, original).
+    Odd seed → Event Booking (variant B).
     """
-    api_spec = {
-        "description": "Compare v1 (old) and v2 (new) of the Product Catalog API. "
-        "Identify all BREAKING changes that would cause existing v1 "
-        "clients to fail when calling the v2 API.",
+    if seed is None or seed % 2 == 0:
+        return _medium_scenario_a()
+    return _medium_scenario_b()
+
+
+# ── Hard Task — breaking changes (fixed, no variant needed) ───────────────
+
+
+def generate_hard_scenario(seed: Optional[int] = None) -> TaskScenario:
+    """Hard scenario: 9 breaking changes between two API spec versions.
+
+    The task is inherently complex (spec-diffing); a single well-designed
+    scenario is more valuable than noisy variants.  seed is accepted for
+    API uniformity but not used.
+    """
+    api_spec: Dict[str, Any] = {
+        "description": (
+            "Compare v1 (old) and v2 (new) of the Product Catalog API. "
+            "Identify all BREAKING changes that would cause existing v1 "
+            "clients to fail when calling the v2 API."
+        ),
         "v1": {
             "openapi": "3.0.3",
             "info": {"title": "Product Catalog API", "version": "1.0.0"},
@@ -450,13 +773,9 @@ def generate_hard_scenario() -> TaskScenario:
                                                     "books",
                                                 ],
                                             },
-                                            "tags": {
-                                                "type": "integer",
-                                            },
+                                            "tags": {"type": "integer"},
                                             "sku": {"type": "string"},
-                                            "weight_grams": {
-                                                "type": "integer"
-                                            },
+                                            "weight_grams": {"type": "integer"},
                                         },
                                     }
                                 }
@@ -491,9 +810,7 @@ def generate_hard_scenario() -> TaskScenario:
         },
     }
 
-    # For the hard task the "payload" carries a sample v1 request that would
-    # break under v2 — it shows the agent what a real client is sending.
-    payload = {
+    payload: Dict[str, Any] = {
         "name": "Wireless Headphones",
         "description": "Noise-cancelling over-ear headphones",
         "price": 79.99,
@@ -542,7 +859,7 @@ def generate_hard_scenario() -> TaskScenario:
         PlantedViolation(
             field_path="POST /products.weight_kg",
             violation_type="breaking_change",
-            description="Field 'weight_kg' removed and replaced by 'weight_grams' with different type.",
+            description="Field 'weight_kg' removed; replaced by 'weight_grams' with different type.",
             expected_value="number 'weight_kg' (v1)",
             actual_value="integer 'weight_grams' (v2)",
         ),
@@ -563,7 +880,7 @@ def generate_hard_scenario() -> TaskScenario:
         PlantedViolation(
             field_path="GET /products[].discount_percent",
             violation_type="breaking_change",
-            description="Response field 'discount_percent' removed in v2 — clients depending on it will break.",
+            description="Response field 'discount_percent' removed in v2 — dependent clients break.",
             expected_value="number (v1)",
             actual_value="(removed in v2)",
         ),
@@ -577,8 +894,8 @@ def generate_hard_scenario() -> TaskScenario:
             "BREAKING changes between v1 and v2 that would cause existing "
             "clients to fail. Breaking changes include: type changes, removed "
             "fields, narrowed enums, new required fields, and removed response "
-            "fields. Use the format 'METHOD /path.field' for paths (e.g. "
-            "'POST /products.price'). Submit field_path='DONE' when finished."
+            "fields. Use the format 'METHOD /path.field' for paths "
+            "(e.g. 'POST /products.price'). Submit field_path='DONE' when finished."
         ),
         api_spec=api_spec,
         payload=payload,
@@ -587,25 +904,448 @@ def generate_hard_scenario() -> TaskScenario:
     )
 
 
+# ── Expert Task — response schema format validation ───────────────────────
+#
+# Agents must validate an API *response* (not a request) against the spec.
+# Violations are subtle: pattern mismatches, out-of-range numerics, wrong
+# date formats, and invalid enum values scattered across nested objects and
+# arrays.  Two complete variants are provided via seed selection.
+
+_RESPONSE_SPEC: Dict[str, Any] = {
+    "openapi": "3.0.3",
+    "info": {"title": "E-Commerce Order API", "version": "3.0.0"},
+    "paths": {
+        "/orders/{order_id}": {
+            "get": {
+                "summary": "Retrieve a single order",
+                "responses": {
+                    "200": {
+                        "description": "Order details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "order_id",
+                                        "created_at",
+                                        "status",
+                                        "customer",
+                                        "items",
+                                        "billing",
+                                    ],
+                                    "properties": {
+                                        "order_id": {
+                                            "type": "string",
+                                            "pattern": "^ORD-[0-9]{6}$",
+                                            "description": "Must match ORD-NNNNNN exactly",
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "ISO 8601 date-time, e.g. 2024-01-15T10:30:00Z",
+                                        },
+                                        "promised_delivery_date": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "description": "ISO 8601 date, e.g. 2024-03-20",
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "pending",
+                                                "processing",
+                                                "shipped",
+                                                "delivered",
+                                                "cancelled",
+                                            ],
+                                        },
+                                        "customer": {
+                                            "type": "object",
+                                            "required": ["email", "phone", "loyalty_points"],
+                                            "properties": {
+                                                "email": {
+                                                    "type": "string",
+                                                    "format": "email",
+                                                },
+                                                "phone": {
+                                                    "type": "string",
+                                                    "pattern": r"^\+[1-9][0-9]{7,14}$",
+                                                    "description": "E.164 format, e.g. +14155552671",
+                                                },
+                                                "loyalty_points": {
+                                                    "type": "integer",
+                                                    "minimum": 0,
+                                                },
+                                            },
+                                        },
+                                        "items": {
+                                            "type": "array",
+                                            "minItems": 1,
+                                            "items": {
+                                                "type": "object",
+                                                "required": [
+                                                    "sku",
+                                                    "unit_price",
+                                                    "quantity",
+                                                    "discount_rate",
+                                                ],
+                                                "properties": {
+                                                    "sku": {
+                                                        "type": "string",
+                                                        "pattern": "^SKU-[A-Z0-9]{6}$",
+                                                        "description": "Must match SKU-XXXXXX",
+                                                    },
+                                                    "unit_price": {
+                                                        "type": "number",
+                                                        "minimum": 0.01,
+                                                    },
+                                                    "quantity": {
+                                                        "type": "integer",
+                                                        "minimum": 1,
+                                                        "maximum": 100,
+                                                    },
+                                                    "discount_rate": {
+                                                        "type": "number",
+                                                        "minimum": 0,
+                                                        "maximum": 1,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                        "billing": {
+                                            "type": "object",
+                                            "required": ["subtotal", "tax_rate", "total"],
+                                            "properties": {
+                                                "subtotal": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                },
+                                                "tax_rate": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                    "maximum": 0.5,
+                                                    "description": "Fraction 0.0–0.5 (max 50%)",
+                                                },
+                                                "total": {
+                                                    "type": "number",
+                                                    "minimum": 0,
+                                                },
+                                            },
+                                        },
+                                        "tracking_code": {
+                                            "type": "string",
+                                            "pattern": "^[A-Z]{2}[0-9]{9}[A-Z]{2}$",
+                                            "description": "2 upper letters + 9 digits + 2 upper letters",
+                                        },
+                                        "estimated_days": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 30,
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    }
+                },
+            }
+        }
+    },
+}
+
+_RESPONSE_TASK_DESCRIPTION = (
+    "You are given an OpenAPI response schema for GET /orders/{order_id} "
+    "and an actual API response. Validate the response against the schema. "
+    "Find all violations including: format errors (invalid date/time formats, "
+    "pattern mismatches, out-of-range numeric values), type mismatches, and "
+    "invalid enum values. These are subtle — read the spec constraints carefully "
+    "(patterns, minimum/maximum, format strings). "
+    "Use dot-notation for nested paths and bracket notation for arrays. "
+    "Submit field_path='DONE' when finished."
+)
+
+
+def _response_scenario_a() -> TaskScenario:
+    """Expert variant A: 10 format/constraint violations in an order response."""
+    payload: Dict[str, Any] = {
+        "order_id": "ORDER-123456",           # format_error: must be ORD-NNNNNN
+        "created_at": "2024-01-15 10:30:00",  # format_error: missing T separator (not ISO 8601)
+        "promised_delivery_date": "15/01/2024",  # format_error: DD/MM/YYYY not YYYY-MM-DD
+        "status": "refunded",                 # invalid_enum
+        "customer": {
+            "email": "customer@@example.com", # format_error: double @
+            "phone": "555-1234",              # format_error: not E.164
+            "loyalty_points": 1500,           # valid
+        },
+        "items": [
+            {
+                "sku": "SKU-AB1234",           # valid
+                "unit_price": 0.00,           # format_error: below minimum 0.01
+                "quantity": 2,
+                "discount_rate": 0.1,
+            },
+            {
+                "sku": "SKU-CD5678",           # valid
+                "unit_price": 49.99,
+                "quantity": 150,              # format_error: exceeds maximum 100
+                "discount_rate": 0.15,
+            },
+        ],
+        "billing": {
+            "subtotal": 149.97,
+            "tax_rate": 0.65,                 # format_error: exceeds maximum 0.5
+            "total": 248.95,
+        },
+        "tracking_code": "TRACK123456789",    # format_error: wrong pattern
+        "estimated_days": 5,
+    }
+
+    violations = [
+        PlantedViolation(
+            field_path="order_id",
+            violation_type="format_error",
+            description="'ORDER-123456' does not match required pattern ^ORD-[0-9]{6}$.",
+            expected_value="string matching ^ORD-[0-9]{6}$",
+            actual_value="'ORDER-123456'",
+        ),
+        PlantedViolation(
+            field_path="created_at",
+            violation_type="format_error",
+            description="'2024-01-15 10:30:00' is not valid ISO 8601 date-time (missing T separator).",
+            expected_value="date-time, e.g. 2024-01-15T10:30:00Z",
+            actual_value="'2024-01-15 10:30:00'",
+        ),
+        PlantedViolation(
+            field_path="promised_delivery_date",
+            violation_type="format_error",
+            description="'15/01/2024' is not valid ISO 8601 date (expected YYYY-MM-DD).",
+            expected_value="date, e.g. 2024-01-15",
+            actual_value="'15/01/2024'",
+        ),
+        PlantedViolation(
+            field_path="status",
+            violation_type="invalid_enum",
+            description="Value 'refunded' not in enum [pending, processing, shipped, delivered, cancelled].",
+            expected_value="one of: pending, processing, shipped, delivered, cancelled",
+            actual_value="'refunded'",
+        ),
+        PlantedViolation(
+            field_path="customer.email",
+            violation_type="format_error",
+            description="'customer@@example.com' is not a valid email (double @ symbol).",
+            expected_value="string, format: email",
+            actual_value="'customer@@example.com'",
+        ),
+        PlantedViolation(
+            field_path="customer.phone",
+            violation_type="format_error",
+            description="'555-1234' does not match E.164 pattern ^\\+[1-9][0-9]{7,14}$.",
+            expected_value=r"string matching ^\+[1-9][0-9]{7,14}$",
+            actual_value="'555-1234'",
+        ),
+        PlantedViolation(
+            field_path="items[0].unit_price",
+            violation_type="format_error",
+            description="'items[0].unit_price' is 0.0, below minimum of 0.01.",
+            expected_value="number >= 0.01",
+            actual_value="0.0",
+        ),
+        PlantedViolation(
+            field_path="items[1].quantity",
+            violation_type="format_error",
+            description="'items[1].quantity' is 150, exceeds maximum of 100.",
+            expected_value="integer, maximum: 100",
+            actual_value="150",
+        ),
+        PlantedViolation(
+            field_path="billing.tax_rate",
+            violation_type="format_error",
+            description="'billing.tax_rate' is 0.65, exceeds maximum of 0.5 (50%).",
+            expected_value="number, maximum: 0.5",
+            actual_value="0.65",
+        ),
+        PlantedViolation(
+            field_path="tracking_code",
+            violation_type="format_error",
+            description="'TRACK123456789' does not match pattern ^[A-Z]{2}[0-9]{9}[A-Z]{2}$.",
+            expected_value="string matching ^[A-Z]{2}[0-9]{9}[A-Z]{2}$",
+            actual_value="'TRACK123456789'",
+        ),
+    ]
+
+    return TaskScenario(
+        task_name="validate_response_schema",
+        task_description=_RESPONSE_TASK_DESCRIPTION,
+        api_spec=_RESPONSE_SPEC,
+        payload=payload,
+        violations=violations,
+        max_steps=25,
+    )
+
+
+def _response_scenario_b() -> TaskScenario:
+    """Expert variant B: 10 different format/constraint violations — harder to spot."""
+    payload: Dict[str, Any] = {
+        "order_id": "ORD-12AB56",             # format_error: non-digits in numeric portion
+        "created_at": "2024-13-01T10:30:00Z", # format_error: month 13 is invalid
+        "promised_delivery_date": "2024-00-15", # format_error: month 0 is invalid
+        "status": "returned",                  # invalid_enum
+        "customer": {
+            "email": "user@",                  # format_error: incomplete email, no domain
+            "phone": "+14155551234",           # valid
+            "loyalty_points": "1500",          # type_mismatch: string instead of integer
+        },
+        "items": [
+            {
+                "sku": "PROD-AB1234",          # format_error: wrong prefix (PROD vs SKU)
+                "unit_price": 29.99,
+                "quantity": 2,
+                "discount_rate": 1.5,          # format_error: exceeds maximum 1.0
+            },
+            {
+                "sku": "SKU-CD5678",           # valid
+                "unit_price": 49.99,
+                "quantity": 3,
+                "discount_rate": 0.0,
+            },
+        ],
+        "billing": {
+            "subtotal": "99.50",              # type_mismatch: string instead of number
+            "tax_rate": 0.18,
+            "total": 117.41,
+        },
+        "tracking_code": "AB123456789CD",     # valid — matches ^[A-Z]{2}[0-9]{9}[A-Z]{2}$
+        "estimated_days": 0,                  # format_error: below minimum 1
+    }
+
+    violations = [
+        PlantedViolation(
+            field_path="order_id",
+            violation_type="format_error",
+            description="'ORD-12AB56' does not match ^ORD-[0-9]{6}$ (non-digit chars 'AB').",
+            expected_value="string matching ^ORD-[0-9]{6}$",
+            actual_value="'ORD-12AB56'",
+        ),
+        PlantedViolation(
+            field_path="created_at",
+            violation_type="format_error",
+            description="'2024-13-01T10:30:00Z' has invalid month 13 — not a valid date-time.",
+            expected_value="date-time with valid calendar date",
+            actual_value="'2024-13-01T10:30:00Z'",
+        ),
+        PlantedViolation(
+            field_path="promised_delivery_date",
+            violation_type="format_error",
+            description="'2024-00-15' has month 0, which is not a valid calendar month.",
+            expected_value="date with valid month (01–12)",
+            actual_value="'2024-00-15'",
+        ),
+        PlantedViolation(
+            field_path="status",
+            violation_type="invalid_enum",
+            description="Value 'returned' not in enum [pending, processing, shipped, delivered, cancelled].",
+            expected_value="one of: pending, processing, shipped, delivered, cancelled",
+            actual_value="'returned'",
+        ),
+        PlantedViolation(
+            field_path="customer.email",
+            violation_type="format_error",
+            description="'user@' is not a valid email address (missing domain after @).",
+            expected_value="string, format: email",
+            actual_value="'user@'",
+        ),
+        PlantedViolation(
+            field_path="customer.loyalty_points",
+            violation_type="type_mismatch",
+            description="Field 'customer.loyalty_points' should be integer, got string.",
+            expected_value="integer",
+            actual_value="string ('1500')",
+        ),
+        PlantedViolation(
+            field_path="items[0].sku",
+            violation_type="format_error",
+            description="'PROD-AB1234' does not match required pattern ^SKU-[A-Z0-9]{6}$.",
+            expected_value="string matching ^SKU-[A-Z0-9]{6}$",
+            actual_value="'PROD-AB1234'",
+        ),
+        PlantedViolation(
+            field_path="items[0].discount_rate",
+            violation_type="format_error",
+            description="'items[0].discount_rate' is 1.5, exceeds maximum of 1.0.",
+            expected_value="number, maximum: 1.0",
+            actual_value="1.5",
+        ),
+        PlantedViolation(
+            field_path="billing.subtotal",
+            violation_type="type_mismatch",
+            description="Field 'billing.subtotal' should be number, got string.",
+            expected_value="number",
+            actual_value="string ('99.50')",
+        ),
+        PlantedViolation(
+            field_path="estimated_days",
+            violation_type="format_error",
+            description="'estimated_days' is 0, below minimum of 1.",
+            expected_value="integer, minimum: 1",
+            actual_value="0",
+        ),
+    ]
+
+    return TaskScenario(
+        task_name="validate_response_schema",
+        task_description=_RESPONSE_TASK_DESCRIPTION,
+        api_spec=_RESPONSE_SPEC,
+        payload=payload,
+        violations=violations,
+        max_steps=25,
+    )
+
+
+def generate_format_validation_scenario(seed: Optional[int] = None) -> TaskScenario:
+    """Expert scenario: validate an API response for format/constraint violations.
+
+    seed=None or even seed → variant A.
+    Odd seed → variant B (different set of violations, same spec).
+    """
+    if seed is None or seed % 2 == 0:
+        return _response_scenario_a()
+    return _response_scenario_b()
+
+
 # ── Registry ──────────────────────────────────────────────────────────────
 
 TASK_GENERATORS = {
     "find_type_mismatches": generate_easy_scenario,
     "validate_nested_objects": generate_medium_scenario,
     "detect_breaking_changes": generate_hard_scenario,
+    "validate_response_schema": generate_format_validation_scenario,
 }
 
 AVAILABLE_TASKS = list(TASK_GENERATORS.keys())
 
 
-def generate_scenario_for_task(task_name: str) -> TaskScenario:
+def generate_scenario_for_task(
+    task_name: str, seed: Optional[int] = None
+) -> TaskScenario:
     """Return a ``TaskScenario`` for the requested task.
 
-    Raises ``ValueError`` if *task_name* is not recognised.
+    Parameters
+    ----------
+    task_name:
+        One of the keys in ``AVAILABLE_TASKS``.
+    seed:
+        Optional integer seed for deterministic randomisation.
+        seed=None → canonical fixed scenario (backward-compatible).
+        seed=int  → reproducible randomised variant.
+
+    Raises
+    ------
+    ValueError
+        If *task_name* is not recognised.
     """
     generator = TASK_GENERATORS.get(task_name)
     if generator is None:
         raise ValueError(
             f"Unknown task '{task_name}'. Available: {AVAILABLE_TASKS}"
         )
-    return generator()
+    return generator(seed=seed)

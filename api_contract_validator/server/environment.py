@@ -114,7 +114,7 @@ class ValidatorEnvironment(Environment):
         ]
         self._task_index += 1
 
-        self._scenario = generate_scenario_for_task(task_name)
+        self._scenario = generate_scenario_for_task(task_name, seed=seed)
         self._matched_paths = set()
         self._reported_violations = []
 

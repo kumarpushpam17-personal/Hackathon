@@ -41,13 +41,14 @@ hackathon/
 
 ---
 
-## 3 Tasks
+## 4 Tasks
 
 | Task | Difficulty | Violations | Max Steps | Description |
 |------|-----------|------------|-----------|-------------|
-| `find_type_mismatches` | Easy | 4 | 10 | Top-level type errors, missing fields, bad enums |
-| `validate_nested_objects` | Medium | 7 | 15 | Nested object + array violations |
+| `find_type_mismatches` | Easy | 4 | 10 | Top-level type errors, missing fields, bad enums. Pool of 8 → samples 4 per episode |
+| `validate_nested_objects` | Medium | 7 | 15 | Nested object + array violations. 2 complete variants (Order Service / Event Booking) |
 | `detect_breaking_changes` | Hard | 9 | 20 | Breaking changes between API v1 and v2 |
+| `validate_response_schema` | Expert | 10 | 25 | Format errors in API response: invalid dates, pattern mismatches, out-of-range values. 2 variants |
 
 ---
 

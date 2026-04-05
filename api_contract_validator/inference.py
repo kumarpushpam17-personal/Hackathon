@@ -36,8 +36,18 @@ API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
 BENCHMARK = "api_contract_validator"
-TASKS = ["find_type_mismatches", "validate_nested_objects", "detect_breaking_changes"]
-MAX_STEPS_PER_TASK = {"find_type_mismatches": 10, "validate_nested_objects": 15, "detect_breaking_changes": 20}
+TASKS = [
+    "find_type_mismatches",
+    "validate_nested_objects",
+    "detect_breaking_changes",
+    "validate_response_schema",
+]
+MAX_STEPS_PER_TASK = {
+    "find_type_mismatches": 10,
+    "validate_nested_objects": 15,
+    "detect_breaking_changes": 20,
+    "validate_response_schema": 25,
+}
 TEMPERATURE = 0.2
 MAX_TOKENS = 1024
 SUCCESS_SCORE_THRESHOLD = 0.3
