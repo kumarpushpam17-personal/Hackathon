@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-api-contract-validator"
+version = "0.1.0"
+description = "API Contract Validator — an OpenEnv RL environment for validating API payloads against OpenAPI specifications."
+requires-python = ">=3.10"
+dependencies = [
+    "openenv-core[core]>=0.2.2",
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "httpx>=0.25.0",
+]
+
+[project.scripts]
+server = "api_contract_validator.server.app:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["api_contract_validator", "api_contract_validator.server"]
+[tool.setuptools.package-dir]
+"api_contract_validator" = "."
+"api_contract_validator.server" = "server"
