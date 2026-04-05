@@ -4,20 +4,28 @@
 This is a submission for the **Meta PyTorch Hackathon (Round 1)** hosted on Scaler.
 - **Goal**: API Contract Validator — an OpenEnv RL environment where AI agents validate API payloads against OpenAPI specifications.
 - **Dashboard**: https://www.scaler.com/school-of-technology/meta-pytorch-hackathon/dashboard#assessment
-- **OpenEnv Course Repo**: `openenv-course/` (cloned reference material)
+- **GitHub Repo**: https://github.com/kumarpushpam17-personal/Hackathon
+- **OpenEnv Course Reference**: `../openenv-course/` (cloned reference material — read-only)
 
-## Architecture
+---
+
+## Directory Layout
 
 ```
 hackathon/
-├── CLAUDE.md                              # This file
-├── openenv-course/                        # Reference — read-only course modules
+├── CLAUDE.md                              # This file (project root)
+├── openenv-course/                        # Reference course — read-only
+│   ├── module-1/README.md                 # Why OpenEnv, the RL loop, architecture
+│   ├── module-2/README.md                 # Using existing environments, policies
+│   ├── module-3/README.md                 # Deploying to HF Spaces, openenv push
+│   ├── module-4/README.md                 # Building your own environment (3-component pattern)
+│   └── module-5/README.md                 # GRPO training with TRL + OpenEnv
 └── api_contract_validator/                # ← THE SUBMISSION
     ├── openenv.yaml                       # OpenEnv manifest
     ├── pyproject.toml                     # Python metadata + dependencies
     ├── Dockerfile                         # HF Spaces deployment
-    ├── inference.py                       # Baseline inference script
-    ├── README.md                          # Documentation (with HF frontmatter)
+    ├── inference.py                       # Baseline inference script (MUST stay named this)
+    ├── README.md                          # HF Spaces README (has frontmatter)
     ├── models.py                          # ValidatorAction, ValidatorObservation, ValidatorState
     ├── client.py                          # ValidatorEnv (WebSocket EnvClient)
     ├── __init__.py                        # Package exports
@@ -31,29 +39,25 @@ hackathon/
         └── requirements.txt               # Server-side deps
 ```
 
+---
+
 ## 3 Tasks
 
-| Task | Difficulty | Violations | Description |
-|------|-----------|------------|-------------|
-| `find_type_mismatches` | Easy | 4 | Top-level type errors, missing fields, bad enums |
-| `validate_nested_objects` | Medium | 7 | Nested object + array violations |
-| `detect_breaking_changes` | Hard | 9 | Breaking changes between API v1 and v2 |
+| Task | Difficulty | Violations | Max Steps | Description |
+|------|-----------|------------|-----------|-------------|
+| `find_type_mismatches` | Easy | 4 | 10 | Top-level type errors, missing fields, bad enums |
+| `validate_nested_objects` | Medium | 7 | 15 | Nested object + array violations |
+| `detect_breaking_changes` | Hard | 9 | 20 | Breaking changes between API v1 and v2 |
 
-## Key Files to Know
+---
 
-- **`server/spec_generator.py`** — Where task scenarios are defined. Each task has an API spec, a payload with planted violations, and ground-truth `PlantedViolation` records. To add/modify tasks, edit here.
-- **`server/rewards.py`** — Reward logic. Correct = +1.0, false positive = -0.3, duplicate = -0.1, DONE bonus = 0.5 × completeness.
-- **`server/environment.py`** — Core `ValidatorEnvironment` class. Handles matching agent reports against ground truth using fuzzy path matching.
-- **`models.py`** — All Pydantic models. `ValidatorAction` (what agent submits), `ValidatorObservation` (what agent sees), `ValidatorState` (internal state).
-- **`inference.py`** — Baseline agent script. Uses OpenAI client. Emits `[START]`/`[STEP]`/`[END]` logs.
-
-## Hackathon Non-Negotiables
+## Hackathon Non-Negotiables (Pre-Submission Checklist)
 
 ### inference.py MUST:
-- Be named exactly `inference.py` in project root
-- Use **OpenAI Client** for LLM calls
+- Be named exactly `inference.py` inside `api_contract_validator/`
+- Use **OpenAI Client** for all LLM calls (not any other SDK)
 - Read env vars: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`
-- Emit stdout in exact format:
+- Emit stdout in EXACT format (any deviation = wrong eval score):
   ```
   [START] task=<task_name> env=<benchmark> model=<model_name>
   [STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
@@ -63,31 +67,118 @@ hackathon/
 
 ### Environment MUST:
 - Pass `openenv validate`
-- `docker build && docker run` works
+- `docker build && docker run -p 7860:7860` works without errors
 - HF Space responds 200 on POST `/reset`
-- 3+ tasks with graders returning 0.0–1.0
-- Reward provides partial progress (not just binary)
+- 3+ tasks with graders returning scores in 0.0–1.0
+- Reward provides partial progress (not just binary 0 or 1)
+
+### README.md MUST have HF Spaces frontmatter:
+```yaml
+---
+title: API Contract Validator
+emoji: 📋
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+tags:
+  - openenv
+pinned: false
+---
+```
+
+### openenv.yaml MUST exist with correct fields:
+```yaml
+spec_version: 1
+name: api_contract_validator
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
+```
+
+---
 
 ## Evaluation Weights
-| Criterion | Weight |
-|---|---|
-| Real-world utility | 30% |
-| Task & grader quality | 25% |
-| Environment design | 20% |
-| Code quality & spec compliance | 15% |
-| Creativity & novelty | 10% |
+| Criterion | Weight | What judges look for |
+|---|---|---|
+| Real-world utility | 30% | Genuine task, immediate value for RL/agent community |
+| Task & grader quality | 25% | 3+ tasks, deterministic graders, real difficulty range |
+| Environment design | 20% | Clean state, sensible action/obs spaces, good reward shaping |
+| Code quality & spec compliance | 15% | openenv validate, docker works, typed models, documented |
+| Creativity & novelty | 10% | Novel domain, clever reward design |
+
+---
+
+## Key Files to Know
+
+- **`server/spec_generator.py`** — Task scenarios with planted violations. Edit here to add/modify tasks.
+- **`server/rewards.py`** — Reward logic: Correct = +1.0, false positive = -0.3, duplicate = -0.1, DONE bonus = 0.5 × completeness.
+- **`server/environment.py`** — Core `ValidatorEnvironment`. Fuzzy path matching for grading agent reports.
+- **`models.py`** — All Pydantic models: `ValidatorAction`, `ValidatorObservation`, `ValidatorState`.
+- **`client.py`** — `ValidatorEnv` WebSocket client used in inference.py and by external training code.
+- **`inference.py`** — Baseline agent script. Uses OpenAI client. Run this to get baseline scores.
+
+---
+
+## Local Development Commands
+
+```bash
+# Run server (from api_contract_validator/)
+cd api_contract_validator
+uvicorn server.app:app --host 0.0.0.0 --port 7860 --reload
+
+# Docker (from api_contract_validator/)
+docker build -t api-contract-validator .
+docker run -p 7860:7860 api-contract-validator
+
+# Test server is live
+curl -X POST http://localhost:7860/reset
+
+# Run inference (server must be running separately)
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+export HF_TOKEN="your-hf-token"
+python inference.py
+```
+
+---
+
+## What Still Needs to Be Done
+
+1. **Deploy to HF Spaces** — Use `/hf-deploy` command for step-by-step guidance
+2. **Get baseline scores** — Run inference.py against all 3 tasks, document results in README
+3. **openenv validate** — Must pass before submission
+4. **Submit HF Space URL** on the Scaler dashboard before deadline
+
+---
 
 ## When Modifying This Project
-1. After changing `spec_generator.py`, run the environment tests to verify violations match
-2. After changing `models.py`, update `client.py` parsing methods accordingly
-3. After changing `environment.py`, re-run `openenv validate`
-4. After changing `Dockerfile`, rebuild and test: `docker build -t test . && docker run -p 7860:7860 test`
-5. After changing `inference.py`, verify stdout format matches spec exactly
-6. Consult `openenv-course/` modules for OpenEnv patterns and conventions
+1. After changing `spec_generator.py` → run `/test-env` to verify violations match
+2. After changing `models.py` → update `client.py` parsing accordingly
+3. After changing `environment.py` → re-run `openenv validate`
+4. After changing `Dockerfile` → rebuild and test locally before deploying
+5. After changing `inference.py` → verify stdout format matches spec exactly
+6. For OpenEnv patterns → read `../openenv-course/module-4/README.md`
+7. For deployment guidance → read `../openenv-course/module-3/README.md`
+
+---
+
+## OpenEnv Course Reference Guide
+
+| Module | File | When to Read |
+|--------|------|-------------|
+| Why OpenEnv | `../openenv-course/module-1/README.md` | Understanding the RL loop and architecture |
+| Using Environments | `../openenv-course/module-2/README.md` | Writing policies, type-safe models |
+| Deploying | `../openenv-course/module-3/README.md` | HF Spaces deployment, openenv push |
+| Building Environments | `../openenv-course/module-4/README.md` | 3-component pattern, models/server/client |
+| GRPO Training | `../openenv-course/module-5/README.md` | Training LLMs with this environment |
+
+---
 
 ## Code Style
 - Python 3.10+, type hints everywhere
 - Pydantic v2 models for all data structures
 - Clear, descriptive function names
-- Docstrings on all public functions (Google/NumPy style)
-- Keep environment deterministic
+- Docstrings on public functions
+- Keep environment deterministic (same seed → same violations)
