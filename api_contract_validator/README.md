@@ -38,7 +38,7 @@ step(violation_report) → Correct? +1.0 | False positive? -0.3 | Duplicate? -0.
 step(DONE) → Episode ends with completeness bonus
 ```
 
-## Tasks (4 difficulty levels)
+## Tasks (5 difficulty levels)
 
 | Task | Difficulty | Violations | Max Steps | What the Agent Must Find |
 |------|-----------|------------|-----------|--------------------------|
@@ -46,6 +46,7 @@ step(DONE) → Episode ends with completeness bonus
 | `validate_nested_objects` | Medium | 7 | 15 | Violations inside nested objects and arrays — requires traversing deep structures |
 | `detect_breaking_changes` | Hard | 9 | 20 | Breaking changes between two API spec versions — type changes, removed fields, narrowed enums, new requirements |
 | `validate_response_schema` | Expert | 10 | 25 | Subtle format errors in an API response: invalid date formats, pattern mismatches, out-of-range numerics, and bad enum values scattered across nested objects and arrays |
+| `validate_cross_field_constraints` | Expert | 7 | 18 | Cross-field arithmetic and date ordering constraints on Invoice API — due_date must be after invoice_date, line totals, subtotal sum, tax calculation, discount rules for trial accounts |
 
 ### Randomised Episode Generation
 
@@ -148,6 +149,8 @@ openenv validate
 | `find_type_mismatches` | Qwen2.5-72B-Instruct | ~0.75 | 5–7 |
 | `validate_nested_objects` | Qwen2.5-72B-Instruct | ~0.57 | 8–12 |
 | `detect_breaking_changes` | Qwen2.5-72B-Instruct | ~0.44 | 12–18 |
+| `validate_response_schema` | Qwen2.5-72B-Instruct | ~0.40 | 15–22 |
+| `validate_cross_field_constraints` | Qwen2.5-72B-Instruct | ~0.43 | 10–16 |
 
 *Scores are approximate and may vary with temperature/sampling.*
 

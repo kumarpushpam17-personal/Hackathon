@@ -41,7 +41,7 @@ hackathon/
 
 ---
 
-## 4 Tasks
+## 5 Tasks
 
 | Task | Difficulty | Violations | Max Steps | Description |
 |------|-----------|------------|-----------|-------------|
@@ -49,6 +49,7 @@ hackathon/
 | `validate_nested_objects` | Medium | 7 | 15 | Nested object + array violations. 2 complete variants (Order Service / Event Booking) |
 | `detect_breaking_changes` | Hard | 9 | 20 | Breaking changes between API v1 and v2 |
 | `validate_response_schema` | Expert | 10 | 25 | Format errors in API response: invalid dates, pattern mismatches, out-of-range values. 2 variants |
+| `validate_cross_field_constraints` | Expert | 7 | 18 | Cross-field arithmetic and date constraints on Invoice API (due_date ordering, line totals, subtotal sum, tax calculation, discount rules) |
 
 ---
 
@@ -62,7 +63,7 @@ hackathon/
   ```
   [START] task=<task_name> env=<benchmark> model=<model_name>
   [STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-  [END] success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
+  [END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
   ```
 - Complete in < 20 minutes on vcpu=2, 8GB RAM
 
