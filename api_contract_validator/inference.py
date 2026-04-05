@@ -1,18 +1,19 @@
 """
 Baseline Inference Script for API Contract Validator Environment.
 
-Runs an LLM agent against all three tasks and produces scores.
+Runs an LLM agent against all tasks and produces scores.
 Uses the OpenAI client for all LLM calls.
 
 Environment variables:
-    API_BASE_URL   — API endpoint (default: HF router)
-    MODEL_NAME     — Model identifier (default: Qwen2.5-72B-Instruct)
-    HF_TOKEN       — Hugging Face / API key
+    API_BASE_URL      — API endpoint (default: HF router)
+    MODEL_NAME        — Model identifier (default: Qwen2.5-72B-Instruct)
+    HF_TOKEN          — Hugging Face / API key (no default)
+    LOCAL_IMAGE_NAME  — Docker image name when using from_docker_image()
 
 STDOUT format follows the hackathon specification exactly:
     [START] task=<task_name> env=<benchmark> model=<model_name>
     [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-    [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
+    [END]   success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 """
 
 import asyncio
@@ -30,10 +31,10 @@ from models import ValidatorAction
 # Configuration
 # ---------------------------------------------------------------------------
 
-IMAGE_NAME = os.getenv("IMAGE_NAME")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+HF_TOKEN = os.getenv("HF_TOKEN")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
 BENCHMARK = "api_contract_validator"
 TASKS = [
@@ -321,10 +322,10 @@ async def run_single_task(
 
 async def main() -> None:
     """Run the inference agent against all tasks."""
-    openai_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    openai_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
-    if IMAGE_NAME:
-        env = await ValidatorEnv.from_docker_image(IMAGE_NAME)
+    if LOCAL_IMAGE_NAME:
+        env = await ValidatorEnv.from_docker_image(LOCAL_IMAGE_NAME)
     else:
         env_url = os.getenv("ENV_BASE_URL", "http://localhost:7860")
         env = ValidatorEnv(base_url=env_url)
