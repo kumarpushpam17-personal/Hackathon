@@ -108,10 +108,12 @@ Rules:
 - Report ONE violation per turn.
 - Use dot-notation for nested paths: 'customer.email'
 - Use bracket notation for arrays: 'items[1].quantity'
-- For breaking changes use: 'METHOD /path.field' e.g. 'POST /products.price'
+- For breaking changes use path format: 'METHOD /path.field' e.g. 'POST /products.price'
+- For breaking changes between API versions, ALWAYS use violation_type='breaking_change'.
+- For cross-field constraints (arithmetic, date ordering, conditional requirements), use violation_type='cross_field_constraint'.
+- The field_path must contain ONLY the path — never include the violation_type inside the field_path.
 - When you have found all violations, respond with field_path set to 'DONE'.
 - Do NOT repeat a violation you already reported.
-- For cross-field constraints (arithmetic, date ordering, conditional requirements), use violation_type='cross_field_constraint'.
 - You may submit field_path='HINT' to receive a location hint at a cost of -0.5 reward.
 """)
 
@@ -172,11 +174,26 @@ def parse_llm_response(text: str) -> Dict[str, str]:
         lines = [l for l in lines if not l.strip().startswith("```")]
         cleaned = "\n".join(lines).strip()
 
+    _VALID_TYPES = {
+        "type_mismatch", "missing_required", "invalid_enum",
+        "format_error", "extra_field", "breaking_change", "cross_field_constraint",
+    }
+
     try:
         data = json.loads(cleaned)
+        field_path = str(data.get("field_path", "DONE"))
+        violation_type = str(data.get("violation_type", "unknown"))
+
+        # LLMs sometimes embed ":violation_type" inside field_path — strip it
+        if ":" in field_path:
+            parts = field_path.split(":")
+            # Only strip if the suffix looks like a violation type keyword
+            if any(vt in parts[-1].lower() for vt in _VALID_TYPES):
+                field_path = parts[0].strip()
+
         return {
-            "field_path": str(data.get("field_path", "DONE")),
-            "violation_type": str(data.get("violation_type", "unknown")),
+            "field_path": field_path,
+            "violation_type": violation_type,
             "description": str(data.get("description", "")),
             "suggested_fix": str(data.get("suggested_fix", "")),
         }
