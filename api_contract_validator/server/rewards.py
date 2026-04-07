@@ -91,8 +91,10 @@ def compute_step_reward(
     if is_done_signal:
         completeness = correct_so_far / max(total_violations, 1)
         bonus = DONE_BONUS_MULTIPLIER * completeness
+        # Clamp to strictly (0, 1) — evaluator requires score never equals 0.0 or 1.0
+        bonus = round(max(0.0001, min(0.9999, bonus)), 4)
         return RewardBreakdown(
-            reward=round(bonus, 4),
+            reward=bonus,
             is_correct=False,
             is_path_match=False,
             is_duplicate=False,

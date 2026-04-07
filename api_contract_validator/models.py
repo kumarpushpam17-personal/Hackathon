@@ -109,4 +109,4 @@ class ValidatorState(State):
     correct_reports: int = 0
     false_positives: int = 0
     duplicate_reports: int = 0
-    score: float = 0.0
+    score: float = 0.0001
