@@ -206,6 +206,50 @@ _EASY_POOL: List[Tuple[str, Any, PlantedViolation]] = [
             actual_value="'ab' (length 2)",
         ),
     ),
+    (
+        "account_balance",
+        "two-fifty",
+        PlantedViolation(
+            field_path="account_balance",
+            violation_type="type_mismatch",
+            description="Field 'account_balance' should be number but received string.",
+            expected_value="number",
+            actual_value="string ('two-fifty')",
+        ),
+    ),
+    (
+        "phone",
+        "0014155551234",
+        PlantedViolation(
+            field_path="phone",
+            violation_type="format_error",
+            description="Field 'phone' starts with 00 not +; must match E.164 format.",
+            expected_value=r"pattern: ^\+[1-9][0-9]{7,14}$",
+            actual_value="'0014155551234'",
+        ),
+    ),
+    (
+        "terms_accepted",
+        1,
+        PlantedViolation(
+            field_path="terms_accepted",
+            violation_type="type_mismatch",
+            description="Field 'terms_accepted' should be boolean but received integer.",
+            expected_value="boolean",
+            actual_value="integer (1)",
+        ),
+    ),
+    (
+        "username",
+        "a" * 33,
+        PlantedViolation(
+            field_path="username",
+            violation_type="format_error",
+            description="Field 'username' has length 33, exceeds maxLength of 32.",
+            expected_value="string, maxLength: 32",
+            actual_value=f"'{('a' * 33)}' (length 33)",
+        ),
+    ),
 ]
 
 
@@ -1615,6 +1659,304 @@ def generate_cross_field_scenario(seed: Optional[int] = None) -> TaskScenario:
     )
 
 
+# ── Expert Task 3 — authentication & security schema validation ───────────
+#
+# Validates a complex authentication API payload covering OAuth2 tokens,
+# permission scopes, rate limits, and security constraints.  Two variants
+# selected by seed parity.
+
+
+def _auth_scenario_a() -> TaskScenario:
+    """Auth scenario A: OAuth2 token introspection response with 6 violations."""
+    api_spec: Dict[str, Any] = {
+        "openapi": "3.0.3",
+        "info": {"title": "Auth Service API", "version": "2.0.0"},
+        "paths": {
+            "/auth/token": {
+                "post": {
+                    "summary": "Issue an OAuth2 access token",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["client_id", "client_secret", "grant_type", "scope"],
+                                    "properties": {
+                                        "client_id": {
+                                            "type": "string",
+                                            "pattern": "^[a-zA-Z0-9_-]{8,64}$",
+                                        },
+                                        "client_secret": {
+                                            "type": "string",
+                                            "minLength": 32,
+                                        },
+                                        "grant_type": {
+                                            "type": "string",
+                                            "enum": [
+                                                "authorization_code",
+                                                "client_credentials",
+                                                "refresh_token",
+                                                "password",
+                                            ],
+                                        },
+                                        "scope": {
+                                            "type": "array",
+                                            "minItems": 1,
+                                            "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "read:users",
+                                                    "write:users",
+                                                    "read:orders",
+                                                    "write:orders",
+                                                    "admin",
+                                                ],
+                                            },
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "minimum": 60,
+                                            "maximum": 86400,
+                                        },
+                                        "redirect_uri": {
+                                            "type": "string",
+                                            "format": "uri",
+                                        },
+                                        "mfa_token": {
+                                            "type": "string",
+                                            "pattern": "^[0-9]{6}$",
+                                            "description": "6-digit numeric MFA code",
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                }
+            }
+        },
+    }
+
+    payload: Dict[str, Any] = {
+        "client_id": "abc",
+        "client_secret": "short",
+        "grant_type": "implicit",
+        "scope": ["read:users", "delete:everything"],
+        "expires_in": 0,
+        "redirect_uri": "not-a-valid-uri",
+        "mfa_token": "12AB56",
+    }
+
+    violations = [
+        PlantedViolation(
+            field_path="client_id",
+            violation_type="format_error",
+            description="'abc' has length 3, below minLength pattern requirement of 8 characters.",
+            expected_value="string matching ^[a-zA-Z0-9_-]{8,64}$",
+            actual_value="'abc'",
+        ),
+        PlantedViolation(
+            field_path="client_secret",
+            violation_type="format_error",
+            description="'short' has length 5, below minLength of 32.",
+            expected_value="string, minLength: 32",
+            actual_value="'short' (length 5)",
+        ),
+        PlantedViolation(
+            field_path="grant_type",
+            violation_type="invalid_enum",
+            description="'implicit' not in allowed enum [authorization_code, client_credentials, refresh_token, password].",
+            expected_value="one of: authorization_code, client_credentials, refresh_token, password",
+            actual_value="'implicit'",
+        ),
+        PlantedViolation(
+            field_path="scope[1]",
+            violation_type="invalid_enum",
+            description="'delete:everything' not in allowed scope enum.",
+            expected_value="one of: read:users, write:users, read:orders, write:orders, admin",
+            actual_value="'delete:everything'",
+        ),
+        PlantedViolation(
+            field_path="expires_in",
+            violation_type="format_error",
+            description="'expires_in' is 0, below minimum of 60.",
+            expected_value="integer, minimum: 60",
+            actual_value="0",
+        ),
+        PlantedViolation(
+            field_path="mfa_token",
+            violation_type="format_error",
+            description="'12AB56' contains letters; must match ^[0-9]{6}$ (6 digits only).",
+            expected_value="string matching ^[0-9]{6}$",
+            actual_value="'12AB56'",
+        ),
+    ]
+
+    return TaskScenario(
+        task_name="validate_auth_request",
+        task_description=(
+            "You are given an OpenAPI specification for POST /auth/token (OAuth2 token issuance) "
+            "and an API request payload. Find all violations: invalid enum values for grant_type "
+            "and scope items, format/pattern violations (client_id pattern, client_secret length, "
+            "mfa_token digits-only, redirect_uri URI format), and out-of-range numeric values. "
+            "Use dot-notation for nested paths and bracket notation for arrays (e.g. 'scope[1]'). "
+            "Submit field_path='DONE' when finished."
+        ),
+        api_spec=api_spec,
+        payload=payload,
+        violations=violations,
+        max_steps=14,
+    )
+
+
+def _auth_scenario_b() -> TaskScenario:
+    """Auth scenario B: API key management request with 6 different violations."""
+    api_spec: Dict[str, Any] = {
+        "openapi": "3.0.3",
+        "info": {"title": "API Key Management", "version": "1.0.0"},
+        "paths": {
+            "/api-keys": {
+                "post": {
+                    "summary": "Create a new API key",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["name", "permissions", "environment", "ttl_days"],
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "minLength": 3,
+                                            "maxLength": 50,
+                                            "pattern": "^[a-z0-9-]+$",
+                                            "description": "Lowercase alphanumeric with hyphens only",
+                                        },
+                                        "permissions": {
+                                            "type": "array",
+                                            "minItems": 1,
+                                            "maxItems": 5,
+                                            "items": {
+                                                "type": "string",
+                                                "enum": ["read", "write", "delete", "admin"],
+                                            },
+                                        },
+                                        "environment": {
+                                            "type": "string",
+                                            "enum": ["development", "staging", "production"],
+                                        },
+                                        "ttl_days": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 365,
+                                        },
+                                        "ip_whitelist": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string",
+                                                "format": "ipv4",
+                                            },
+                                        },
+                                        "rate_limit": {
+                                            "type": "integer",
+                                            "minimum": 10,
+                                            "maximum": 10000,
+                                            "description": "Requests per minute",
+                                        },
+                                    },
+                                }
+                            }
+                        },
+                    },
+                }
+            }
+        },
+    }
+
+    payload: Dict[str, Any] = {
+        "name": "My API Key!",
+        "permissions": ["read", "write", "superuser"],
+        "environment": "local",
+        "ttl_days": 0,
+        "ip_whitelist": ["192.168.1.1", "999.0.0.1"],
+        "rate_limit": 5,
+    }
+
+    violations = [
+        PlantedViolation(
+            field_path="name",
+            violation_type="format_error",
+            description="'My API Key!' contains spaces and '!'; must match ^[a-z0-9-]+$ (lowercase, digits, hyphens only).",
+            expected_value="string matching ^[a-z0-9-]+$",
+            actual_value="'My API Key!'",
+        ),
+        PlantedViolation(
+            field_path="permissions[2]",
+            violation_type="invalid_enum",
+            description="'superuser' not in allowed enum [read, write, delete, admin].",
+            expected_value="one of: read, write, delete, admin",
+            actual_value="'superuser'",
+        ),
+        PlantedViolation(
+            field_path="environment",
+            violation_type="invalid_enum",
+            description="'local' not in enum [development, staging, production].",
+            expected_value="one of: development, staging, production",
+            actual_value="'local'",
+        ),
+        PlantedViolation(
+            field_path="ttl_days",
+            violation_type="format_error",
+            description="'ttl_days' is 0, below minimum of 1.",
+            expected_value="integer, minimum: 1",
+            actual_value="0",
+        ),
+        PlantedViolation(
+            field_path="ip_whitelist[1]",
+            violation_type="format_error",
+            description="'999.0.0.1' is not a valid IPv4 address (first octet 999 > 255).",
+            expected_value="string, format: ipv4",
+            actual_value="'999.0.0.1'",
+        ),
+        PlantedViolation(
+            field_path="rate_limit",
+            violation_type="format_error",
+            description="'rate_limit' is 5, below minimum of 10.",
+            expected_value="integer, minimum: 10",
+            actual_value="5",
+        ),
+    ]
+
+    return TaskScenario(
+        task_name="validate_auth_request",
+        task_description=(
+            "You are given an OpenAPI specification for POST /api-keys (API key creation) "
+            "and a request payload. Find all violations: invalid enum values for permissions "
+            "items and environment, format/pattern violations (name pattern, ip_whitelist format), "
+            "and out-of-range numeric values (ttl_days, rate_limit). "
+            "Use dot-notation for nested paths and bracket notation for arrays (e.g. 'permissions[2]'). "
+            "Submit field_path='DONE' when finished."
+        ),
+        api_spec=api_spec,
+        payload=payload,
+        violations=violations,
+        max_steps=14,
+    )
+
+
+def generate_auth_scenario(seed: Optional[int] = None) -> TaskScenario:
+    """Auth scenario: two variants selected by seed parity.
+
+    seed=None or even → OAuth2 token (variant A).
+    Odd seed → API key management (variant B).
+    """
+    if seed is None or seed % 2 == 0:
+        return _auth_scenario_a()
+    return _auth_scenario_b()
+
+
 # ── Registry ──────────────────────────────────────────────────────────────
 
 TASK_GENERATORS = {
@@ -1623,6 +1965,7 @@ TASK_GENERATORS = {
     "detect_breaking_changes": generate_hard_scenario,
     "validate_response_schema": generate_format_validation_scenario,
     "validate_cross_field_constraints": generate_cross_field_scenario,
+    "validate_auth_request": generate_auth_scenario,
 }
 
 AVAILABLE_TASKS = list(TASK_GENERATORS.keys())

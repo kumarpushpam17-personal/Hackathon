@@ -43,6 +43,7 @@ TASKS = [
     "detect_breaking_changes",
     "validate_response_schema",
     "validate_cross_field_constraints",
+    "validate_auth_request",
 ]
 MAX_STEPS_PER_TASK = {
     "find_type_mismatches": 10,
@@ -50,7 +51,9 @@ MAX_STEPS_PER_TASK = {
     "detect_breaking_changes": 20,
     "validate_response_schema": 25,
     "validate_cross_field_constraints": 18,
+    "validate_auth_request": 14,
 }
+MAX_CONSECUTIVE_FAILURES = 3  # stop retrying same field after this many -0.3 rewards
 TEMPERATURE = 0.2
 MAX_TOKENS = 1024
 SUCCESS_SCORE_THRESHOLD = 0.3
@@ -93,29 +96,33 @@ def log_end(
 
 SYSTEM_PROMPT = textwrap.dedent("""\
 You are an expert API contract validator. You will be given an OpenAPI \
-specification and an API payload. Your job is to find violations in the \
+specification and an API payload. Your job is to find ALL violations in the \
 payload that do not conform to the spec.
 
 Each turn you must respond with EXACTLY one JSON object (no markdown, no \
-explanation outside the JSON) with these fields:
+explanation outside the JSON):
 {
-    "field_path": "<dot-notation path to the violated field, or 'DONE' if no more violations>",
+    "field_path": "<dot-notation path to the violated field, or 'DONE' if finished>",
     "violation_type": "<type_mismatch|missing_required|invalid_enum|format_error|extra_field|breaking_change|cross_field_constraint>",
-    "description": "<brief explanation>",
+    "description": "<brief explanation of the violation>",
     "suggested_fix": "<how to fix it>"
 }
 
-Rules:
-- Report ONE violation per turn.
-- Use dot-notation for nested paths: 'customer.email'
-- Use bracket notation for arrays: 'items[1].quantity'
-- For breaking changes use path format: 'METHOD /path.field' e.g. 'POST /products.price'
-- For breaking changes between API versions, ALWAYS use violation_type='breaking_change'.
-- For cross-field constraints (arithmetic, date ordering, conditional requirements), use violation_type='cross_field_constraint'.
-- The field_path must contain ONLY the path — never include the violation_type inside the field_path.
-- When you have found all violations, respond with field_path set to 'DONE'.
-- Do NOT repeat a violation you already reported.
-- You may submit field_path='HINT' to receive a location hint at a cost of -0.5 reward.
+STRICT RULES:
+1. Report ONE violation per turn. Be systematic — check every field.
+2. field_path must be ONLY the path. NEVER put ':violation_type' inside field_path.
+3. Paths: dot-notation 'customer.email', arrays 'items[1].quantity', breaking changes 'POST /path.field'.
+4. violation_type choices:
+   - type_mismatch: wrong data type (string vs integer, etc.)
+   - missing_required: required field absent from payload
+   - invalid_enum: value not in the allowed enum list
+   - format_error: value violates format/pattern/min/max constraint
+   - breaking_change: API v1→v2 change that breaks existing clients (ALWAYS use this for breaking changes)
+   - cross_field_constraint: arithmetic/date/conditional rule across multiple fields
+5. Do NOT repeat a violation already in 'Violations found so far'.
+6. If last feedback was 'False positive' or negative reward, that field is WRONG — move to a different field.
+7. When you have reported all violations, set field_path='DONE'.
+8. You may set field_path='HINT' for a location clue at -0.5 reward cost.
 """)
 
 
@@ -264,6 +271,8 @@ async def run_single_task(
     steps_taken = 0
     score = 0.01  # default: strictly > 0 as required by evaluator
     success = False
+    consecutive_failures = 0
+    last_failed_path = ""
 
     log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
 
@@ -275,7 +284,18 @@ async def run_single_task(
             if result.done:
                 break
 
-            action_data = query_llm(client, obs_dict, step, history)
+            # If stuck on same wrong field too many times, request a HINT
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                action_data = {
+                    "field_path": "HINT",
+                    "violation_type": "",
+                    "description": "",
+                    "suggested_fix": "",
+                }
+                consecutive_failures = 0
+                last_failed_path = ""
+            else:
+                action_data = query_llm(client, obs_dict, step, history)
 
             action = ValidatorAction(
                 field_path=action_data["field_path"],
@@ -297,8 +317,20 @@ async def run_single_task(
             action_str = f"{action_data['field_path']}:{action_data['violation_type']}"
             log_step(step=step, action=action_str, reward=reward, done=done, error=error)
 
+            # Track consecutive failures on same field to trigger HINT
+            if reward < 0 and action_data["field_path"] not in ("DONE", "HINT"):
+                if action_data["field_path"] == last_failed_path:
+                    consecutive_failures += 1
+                else:
+                    consecutive_failures = 1
+                    last_failed_path = action_data["field_path"]
+            else:
+                consecutive_failures = 0
+                last_failed_path = ""
+
             history.append(
-                f"Step {step}: {action_str} → reward {reward:+.2f}"
+                f"Step {step}: {action_str} → reward {reward:+.2f} "
+                f"({'correct' if reward >= 1.0 else 'WRONG - do not retry this field' if reward < 0 else 'partial'})"
             )
 
             if done:

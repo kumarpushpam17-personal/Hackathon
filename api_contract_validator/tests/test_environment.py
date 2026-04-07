@@ -25,14 +25,15 @@ def env():
 # ── Task structure ─────────────────────────────────────────────────────────
 
 
-def test_five_tasks_registered():
-    assert len(AVAILABLE_TASKS) == 5
+def test_six_tasks_registered():
+    assert len(AVAILABLE_TASKS) == 6
     expected = {
         "find_type_mismatches",
         "validate_nested_objects",
         "detect_breaking_changes",
         "validate_response_schema",
         "validate_cross_field_constraints",
+        "validate_auth_request",
     }
     assert set(AVAILABLE_TASKS) == expected
 
@@ -189,3 +190,27 @@ def test_cross_field_violations_use_correct_type():
         assert v.violation_type == "cross_field_constraint", (
             f"Expected cross_field_constraint, got {v.violation_type} for {v.field_path}"
         )
+
+
+# ── Auth task ──────────────────────────────────────────────────────────────
+
+
+def test_auth_task_has_six_violations():
+    scenario = generate_scenario_for_task("validate_auth_request")
+    assert len(scenario.violations) == 6
+
+
+def test_auth_task_variants_differ():
+    s_even = generate_scenario_for_task("validate_auth_request", seed=0)
+    s_odd = generate_scenario_for_task("validate_auth_request", seed=1)
+    paths_even = {v.field_path for v in s_even.violations}
+    paths_odd = {v.field_path for v in s_odd.violations}
+    assert paths_even != paths_odd, "Even and odd seed should give different auth scenarios"
+
+
+# ── Easy pool expansion ────────────────────────────────────────────────────
+
+
+def test_easy_pool_has_twelve_variants():
+    from server.spec_generator import _EASY_POOL
+    assert len(_EASY_POOL) == 12, f"Expected 12 pool entries, got {len(_EASY_POOL)}"

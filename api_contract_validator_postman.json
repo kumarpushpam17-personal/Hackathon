@@ -1,0 +1,1065 @@
+{
+  "info": {
+    "name": "API Contract Validator — Full Test Suite",
+    "description": "Tests all 5 tasks and all reward scenarios in sequence.\n\nHow the environment works:\n- POST /reset → start a new episode, get spec + payload\n- POST /step → report one violation at a time\n- GET /state → see internal counters (correct, false positives, etc)\n\nReward rules:\n  Correct violation  → +1.0\n  Wrong guess        → -0.3\n  Duplicate report   → -0.1\n  HINT request       → -0.5\n  DONE (all found)   → +0.5 × (found/total) bonus",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:7860",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Health Check",
+      "item": [
+        {
+          "name": "GET / (server alive?)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Just checking the server is up and responding.",
+                  "// Expected: 200 OK with some JSON"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Server is alive (200)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 — Reset All 5 Tasks",
+      "item": [
+        {
+          "name": "Reset: find_type_mismatches (Easy)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// TASK: find_type_mismatches",
+                  "// Difficulty: Easy",
+                  "// Violations: 4 (sampled from pool of 8)",
+                  "// What to find: top-level type errors, missing required fields, invalid enums",
+                  "// Max Steps: 10"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var body = pm.response.json();",
+                  "",
+                  "pm.test('Task name is correct', function () {",
+                  "    pm.expect(body.observation.task_name).to.eql('find_type_mismatches');",
+                  "});",
+                  "",
+                  "pm.test('Has 4 violations remaining', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(4);",
+                  "});",
+                  "",
+                  "pm.test('Has api_spec and payload', function () {",
+                  "    pm.expect(body.observation.api_spec).to.be.an('object');",
+                  "    pm.expect(body.observation.payload).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('Episode not done yet', function () {",
+                  "    pm.expect(body.done).to.eql(false);",
+                  "});",
+                  "",
+                  "// Save payload for inspection in Postman console",
+                  "console.log('Payload to validate:', JSON.stringify(body.observation.payload, null, 2));",
+                  "console.log('Task description:', body.observation.task_description);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"find_type_mismatches\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Reset: validate_nested_objects (Medium)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// TASK: validate_nested_objects",
+                  "// Difficulty: Medium",
+                  "// Violations: 7",
+                  "// What to find: violations inside nested objects and arrays",
+                  "// 2 variants: Order Service OR Event Booking (chosen by seed)",
+                  "// Max Steps: 15"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var body = pm.response.json();",
+                  "pm.test('Task name is correct', function () {",
+                  "    pm.expect(body.observation.task_name).to.eql('validate_nested_objects');",
+                  "});",
+                  "pm.test('Has 7 violations remaining', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(7);",
+                  "});",
+                  "console.log('Payload:', JSON.stringify(body.observation.payload, null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"validate_nested_objects\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Reset: detect_breaking_changes (Hard)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// TASK: detect_breaking_changes",
+                  "// Difficulty: Hard",
+                  "// Violations: 9",
+                  "// What to find: breaking changes between API v1 and v2",
+                  "//   - removed fields, type changes, narrowed enums, new required fields",
+                  "// field_path format: 'METHOD /path.field' e.g. 'POST /products.price'",
+                  "// violation_type MUST be 'breaking_change' for all",
+                  "// Max Steps: 20"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var body = pm.response.json();",
+                  "pm.test('Task name is correct', function () {",
+                  "    pm.expect(body.observation.task_name).to.eql('detect_breaking_changes');",
+                  "});",
+                  "pm.test('Has 9 violations remaining', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(9);",
+                  "});",
+                  "console.log('API Spec (v1 vs v2 diff):', JSON.stringify(body.observation.api_spec, null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"detect_breaking_changes\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Reset: validate_response_schema (Expert)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// TASK: validate_response_schema",
+                  "// Difficulty: Expert",
+                  "// Violations: 10",
+                  "// What to find: format errors in API response",
+                  "//   - invalid date formats, pattern mismatches, out-of-range values, bad enums",
+                  "// 2 variants chosen by seed",
+                  "// Max Steps: 25"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var body = pm.response.json();",
+                  "pm.test('Task name is correct', function () {",
+                  "    pm.expect(body.observation.task_name).to.eql('validate_response_schema');",
+                  "});",
+                  "pm.test('Has 10 violations remaining', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(10);",
+                  "});",
+                  "console.log('Payload:', JSON.stringify(body.observation.payload, null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"validate_response_schema\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Reset: validate_cross_field_constraints (Expert)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// TASK: validate_cross_field_constraints",
+                  "// Difficulty: Expert",
+                  "// Violations: 7",
+                  "// What to find: arithmetic and date constraints on Invoice API",
+                  "//   1. due_date must be AFTER invoice_date",
+                  "//   2. line_items[N].line_total = quantity × unit_price",
+                  "//   3. billing.subtotal = sum of all line_total values",
+                  "//   4. billing.tax_amount = subtotal × tax_rate",
+                  "//   5. billing.total = subtotal + tax_amount - discount_amount",
+                  "//   6. billing.item_count = number of line_items",
+                  "//   7. if account_type='trial', discount_amount must be 0",
+                  "// Max Steps: 18"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var body = pm.response.json();",
+                  "pm.test('Task name is correct', function () {",
+                  "    pm.expect(body.observation.task_name).to.eql('validate_cross_field_constraints');",
+                  "});",
+                  "pm.test('Has 7 violations remaining', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(7);",
+                  "});",
+                  "console.log('Payload to validate:', JSON.stringify(body.observation.payload, null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"validate_cross_field_constraints\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 — Reward Scenarios (Full Episode)",
+      "item": [
+        {
+          "name": "Step 1: Reset episode (cross_field)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Starting a fresh episode on the cross_field task.",
+                  "// We will walk through all reward scenarios one by one:",
+                  "//   correct → +1.0",
+                  "//   wrong   → -0.3",
+                  "//   hint    → -0.5",
+                  "//   dup     → -0.1",
+                  "//   DONE    → completeness bonus"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset OK', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('7 violations ready', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(7);",
+                  "});",
+                  "console.log('Episode started. violations_remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"validate_cross_field_constraints\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Step 2: CORRECT answer → reward +1.0",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// CORRECT VIOLATION: due_date is 2024-03-10, invoice_date is 2024-03-15",
+                  "// due_date must be AFTER invoice_date — this is clearly wrong.",
+                  "// Expected reward: +1.0"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Reward is +1.0 for correct violation', function () {",
+                  "    pm.expect(body.reward).to.eql(1.0);",
+                  "});",
+                  "pm.test('violations_remaining decreased by 1', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(6);",
+                  "});",
+                  "pm.test('Episode not done yet', function () {",
+                  "    pm.expect(body.done).to.eql(false);",
+                  "});",
+                  "console.log('Reward:', body.reward, '| Feedback:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"due_date\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"due_date 2024-03-10 is before invoice_date 2024-03-15\",\n  \"suggested_fix\": \"Set due_date to a date strictly after 2024-03-15\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Step 3: WRONG answer → reward -0.3",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// FALSE POSITIVE: customer.name is perfectly fine in the payload.",
+                  "// We are reporting a fake bug that doesn't exist.",
+                  "// Expected reward: -0.3 (false positive penalty)"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Reward is -0.3 for false positive', function () {",
+                  "    pm.expect(body.reward).to.eql(-0.3);",
+                  "});",
+                  "pm.test('violations_remaining unchanged (still 6)', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(6);",
+                  "});",
+                  "console.log('Reward:', body.reward, '| Feedback:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"customer.name\",\n  \"violation_type\": \"type_mismatch\",\n  \"description\": \"This field is wrong (it is not actually wrong)\",\n  \"suggested_fix\": \"nothing\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Step 4: HINT request → reward -0.5",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// HINT: special field_path='HINT' asks the environment for a clue.",
+                  "// The environment tells you WHICH section has an undiscovered violation.",
+                  "// Cost: -0.5 reward.",
+                  "// Useful when the AI is stuck."
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Reward is -0.5 for hint', function () {",
+                  "    pm.expect(body.reward).to.eql(-0.5);",
+                  "});",
+                  "pm.test('Feedback contains hint text', function () {",
+                  "    pm.expect(body.observation.feedback).to.include('Hint:');",
+                  "});",
+                  "pm.test('Episode not done (hint does not end episode)', function () {",
+                  "    pm.expect(body.done).to.eql(false);",
+                  "});",
+                  "console.log('HINT received:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"HINT\",\n  \"violation_type\": \"\",\n  \"description\": \"\",\n  \"suggested_fix\": \"\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Step 5: 2nd CORRECT answer → reward +1.0",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// CORRECT: line_items[0].line_total should be 3 × 25.0 = 75.0 but is 80.0",
+                  "// Expected reward: +1.0"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Reward is +1.0 for correct violation', function () {",
+                  "    pm.expect(body.reward).to.eql(1.0);",
+                  "});",
+                  "pm.test('violations_remaining is now 5', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(5);",
+                  "});",
+                  "console.log('Reward:', body.reward, '| violations_remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"line_items[0].line_total\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"line_total is 80.0 but quantity(3) × unit_price(25.0) = 75.0\",\n  \"suggested_fix\": \"Set line_total to 75.0\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Step 6: DUPLICATE report → reward -0.1",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// DUPLICATE: we already reported due_date in Step 2.",
+                  "// Reporting the same violation again gets a light penalty.",
+                  "// Expected reward: -0.1"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Reward is -0.1 for duplicate', function () {",
+                  "    pm.expect(body.reward).to.eql(-0.1);",
+                  "});",
+                  "pm.test('violations_remaining unchanged (still 5)', function () {",
+                  "    pm.expect(body.observation.violations_remaining).to.eql(5);",
+                  "});",
+                  "console.log('Reward:', body.reward, '| Feedback:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"due_date\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"Reporting due_date again — this is a duplicate\",\n  \"suggested_fix\": \"\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Step 7: PROXIMITY match → reward +0.3",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// PROXIMITY: correct field path (billing.subtotal) but wrong violation_type.",
+                  "// billing.subtotal IS a real violation but type should be cross_field_constraint.",
+                  "// We report it as type_mismatch — right location, wrong type.",
+                  "// Expected reward: +0.3 (proximity reward)"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Reward is +0.3 for proximity (right path, wrong type)', function () {",
+                  "    pm.expect(body.reward).to.eql(0.3);",
+                  "});",
+                  "console.log('Reward:', body.reward, '| Feedback:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"billing.subtotal\",\n  \"violation_type\": \"type_mismatch\",\n  \"description\": \"subtotal value looks wrong\",\n  \"suggested_fix\": \"\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Step 8: DONE signal → episode ends with bonus",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// DONE: agent decides to stop.",
+                  "// Environment gives a completeness bonus: +0.5 × (found/total)",
+                  "// We found 2 out of 7 violations, so bonus = 0.5 × (2/7) ≈ +0.14",
+                  "// Episode ends: done=true"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Episode is done', function () {",
+                  "    pm.expect(body.done).to.eql(true);",
+                  "});",
+                  "pm.test('Reward is positive completeness bonus', function () {",
+                  "    pm.expect(body.reward).to.be.above(0);",
+                  "});",
+                  "console.log('Episode ended. Final reward:', body.reward);",
+                  "console.log('Final feedback:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"DONE\",\n  \"violation_type\": \"\",\n  \"description\": \"\",\n  \"suggested_fix\": \"\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 — Perfect Episode (All 7 Found)",
+      "item": [
+        {
+          "name": "Reset for perfect run",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// We will find ALL 7 violations correctly and submit DONE.",
+                  "// This is what a perfect AI agent would do.",
+                  "// Final score should be 1.0"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset OK', function () { pm.response.to.have.status(200); });",
+                  "console.log('Starting perfect episode...');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"validate_cross_field_constraints\"}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Find violation 1: due_date ordering",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V1 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"due_date\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"due_date 2024-03-10 is before invoice_date 2024-03-15\",\n  \"suggested_fix\": \"Set due_date after invoice_date\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Find violation 2: line_items[0].line_total wrong",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V2 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"line_items[0].line_total\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"3 x 25.0 = 75.0, not 80.0\",\n  \"suggested_fix\": \"Set line_total to 75.0\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Find violation 3: billing.subtotal wrong",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V3 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"billing.subtotal\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"subtotal should be 75+49.99+60=184.99, not 200.0\",\n  \"suggested_fix\": \"Set subtotal to 184.99\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Find violation 4: billing.tax_amount wrong",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V4 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"billing.tax_amount\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"184.99 x 0.08 = 14.80, not 14.4\",\n  \"suggested_fix\": \"Set tax_amount to 14.80\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Find violation 5: billing.discount_amount must be 0 for trial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V5 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"billing.discount_amount\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"account_type is trial so discount_amount must be 0, not 25.0\",\n  \"suggested_fix\": \"Set discount_amount to 0\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Find violation 6: billing.total wrong",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V6 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"billing.total\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"184.99 + 14.80 - 25.0 = 174.79, not 195.0\",\n  \"suggested_fix\": \"Recalculate total\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "Find violation 7: billing.item_count wrong",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var body = pm.response.json();",
+                  "pm.test('Reward +1.0', function () { pm.expect(body.reward).to.eql(1.0); });",
+                  "console.log('V7 done. remaining:', body.observation.violations_remaining);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"billing.item_count\",\n  \"violation_type\": \"cross_field_constraint\",\n  \"description\": \"There are 3 line_items but item_count is 4\",\n  \"suggested_fix\": \"Set item_count to 3\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        },
+        {
+          "name": "DONE after all found → max bonus",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// All 7 violations found. Now submit DONE.",
+                  "// Bonus = 0.5 × (7/7) = 0.5",
+                  "// Final score = 7/7 = 1.0"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Step returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Episode is done', function () { pm.expect(body.done).to.eql(true); });",
+                  "pm.test('Bonus reward is 0.5 (all violations found)', function () {",
+                  "    pm.expect(body.reward).to.eql(0.5);",
+                  "});",
+                  "console.log('PERFECT EPISODE COMPLETE!');",
+                  "console.log('Final bonus reward:', body.reward);",
+                  "console.log('Feedback:', body.observation.feedback);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field_path\": \"DONE\",\n  \"violation_type\": \"\",\n  \"description\": \"\",\n  \"suggested_fix\": \"\"\n}"
+            },
+            "url": "{{base_url}}/step"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 — State Check",
+      "item": [
+        {
+          "name": "GET /state (internal counters)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// GET /state shows internal counters:",
+                  "//   correct_reports — how many correct violations found",
+                  "//   false_positives — wrong guesses",
+                  "//   duplicate_reports — repeated violations",
+                  "//   score — final episode score 0.0-1.0"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('State returns 200', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test('Has correct_reports counter', function () {",
+                  "    pm.expect(body).to.have.property('correct_reports');",
+                  "});",
+                  "pm.test('Has score', function () {",
+                  "    pm.expect(body).to.have.property('score');",
+                  "});",
+                  "console.log('State:', JSON.stringify(body, null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/state"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 — Seed Reproducibility",
+      "item": [
+        {
+          "name": "Reset with seed=42",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Passing a seed gives you a deterministic episode.",
+                  "// Same seed = same violations every time.",
+                  "// This is important for training: agents can replay the same episode.",
+                  "// Run this twice and compare the payload — it should be identical."
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset OK', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "// Save payload to environment variable for comparison",
+                  "pm.environment.set('seed42_payload', JSON.stringify(body.observation.payload));",
+                  "console.log('Seed 42 payload:', JSON.stringify(body.observation.payload, null, 2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"find_type_mismatches\", \"seed\": 42}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Reset with seed=42 again (must match)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset OK', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "var saved = pm.environment.get('seed42_payload');",
+                  "pm.test('Same seed produces identical payload', function () {",
+                  "    pm.expect(JSON.stringify(body.observation.payload)).to.eql(saved);",
+                  "});",
+                  "console.log('Payloads match:', JSON.stringify(body.observation.payload) === saved);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"find_type_mismatches\", \"seed\": 42}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        },
+        {
+          "name": "Reset with seed=99 (must differ)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Reset OK', function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "var saved = pm.environment.get('seed42_payload');",
+                  "pm.test('Different seed produces different payload', function () {",
+                  "    pm.expect(JSON.stringify(body.observation.payload)).to.not.eql(saved);",
+                  "});",
+                  "console.log('Payloads differ (expected):', JSON.stringify(body.observation.payload) !== saved);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"task_name\": \"find_type_mismatches\", \"seed\": 99}"
+            },
+            "url": "{{base_url}}/reset"
+          }
+        }
+      ]
+    }
+  ]
+}
