@@ -92,7 +92,8 @@ def compute_step_reward(
         completeness = correct_so_far / max(total_violations, 1)
         bonus = DONE_BONUS_MULTIPLIER * completeness
         # Clamp to strictly (0, 1) — evaluator requires score never equals 0.0 or 1.0
-        bonus = round(max(0.0001, min(0.9999, bonus)), 4)
+        # Use 0.01/0.99 so value is still non-zero/non-one after :.2f formatting
+        bonus = round(max(0.01, min(0.99, bonus)), 4)
         return RewardBreakdown(
             reward=bonus,
             is_correct=False,
@@ -169,4 +170,5 @@ def compute_episode_score(correct_count: int, total_violations: int) -> float:
     if total_violations == 0:
         return 0.5
     raw = correct_count / total_violations
-    return round(max(0.0001, min(0.9999, raw)), 4)
+    # Use 0.01/0.99 so value is still non-zero/non-one after :.2f formatting
+    return round(max(0.01, min(0.99, raw)), 4)
