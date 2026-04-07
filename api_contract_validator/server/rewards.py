@@ -161,8 +161,10 @@ def compute_step_reward(
 def compute_episode_score(correct_count: int, total_violations: int) -> float:
     """Compute the final normalised score for the episode.
 
-    Returns a float in ``[0.0, 1.0]``.
+    Returns a float strictly in ``(0.0, 1.0)`` — endpoints excluded — as
+    required by the OpenEnv evaluation pipeline.
     """
     if total_violations == 0:
-        return 1.0
-    return round(correct_count / total_violations, 4)
+        return 0.5
+    raw = correct_count / total_violations
+    return round(max(0.0001, min(0.9999, raw)), 4)
