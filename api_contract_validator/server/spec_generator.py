@@ -2,15 +2,22 @@
 Spec generator for the API Contract Validator Environment.
 
 Generates OpenAPI specifications, payloads with planted violations,
-and ground-truth violation records for four difficulty levels.
+and ground-truth violation records for six difficulty levels:
+
+    find_type_mismatches        Easy   — 4 violations from pool of 12 (495 combos)
+    validate_nested_objects     Medium — 7 violations, 2 scenario variants
+    detect_breaking_changes     Hard   — 9 breaking changes between v1 and v2
+    validate_response_schema    Expert — 10 format/constraint violations, 2 variants
+    validate_cross_field_constraints Expert — 7 arithmetic + date cross-field errors
+    validate_auth_request       Expert — 6 auth/security violations, 2 variants
 
 Each generator accepts an optional *seed* for deterministic randomisation:
-- seed=None  → fixed canonical scenario (backward-compatible)
-- seed=int   → reproducible randomised variant
+    seed=None  → fixed canonical scenario (backward-compatible defaults)
+    seed=int   → reproducible randomised variant (use for RL training)
 
 This makes the environment suitable for both evaluation (fixed seed) and
-training (varied seeds), which is the key distinction between a one-shot
-evaluator and a genuine RL training environment.
+training (varied seeds) — the key distinction between a one-shot evaluator
+and a genuine RL training environment.
 """
 
 import random

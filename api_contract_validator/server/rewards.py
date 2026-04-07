@@ -2,17 +2,19 @@
 Reward computation for the API Contract Validator Environment.
 
 Provides partial-progress reward signals rather than binary end-of-episode
-scoring.  The reward function has several interesting properties:
+scoring, creating a richer gradient for RL training:
 
-  - Correct violation found          → +1.0  (primary incentive)
-  - Path-only match (wrong type)     → +0.3  (proximity signal — learn location first)
-  - HINT requested                   → -0.5  (expensive but informative)
-  - Duplicate report                 → -0.1  (light penalty, track what you've found)
-  - False positive                   → -0.3  (penalise guessing)
-  - DONE signal                      → +0.5 × (found/total)  (completeness bonus)
+  - Correct violation found      → +1.0   primary incentive, one reward per unique violation
+  - Path-only match (wrong type) → +0.3   proximity signal — agent found the right field,
+                                           now needs to classify it correctly; each path
+                                           earns proximity reward at most once
+  - HINT requested               → -0.5   informative but expensive; use sparingly
+  - Duplicate report             → -0.1   light penalty — agent should track findings
+  - False positive               → -0.3   penalises random guessing
+  - DONE signal                  → +0.5 × (found/total)   completeness bonus on exit
 
-The proximity reward creates a richer gradient: agents learn to locate the
-right field first, then refine their violation classification.
+Final episode score = correct / total, clamped to (0.01, 0.99) so it is
+always strictly between 0 and 1 as required by the OpenEnv eval pipeline.
 """
 
 from dataclasses import dataclass
