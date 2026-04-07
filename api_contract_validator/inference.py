@@ -82,7 +82,7 @@ def log_end(
 ) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -262,7 +262,7 @@ async def run_single_task(
     history: List[str] = []
     rewards: List[float] = []
     steps_taken = 0
-    score = 0.0
+    score = 0.01  # default: strictly > 0 as required by evaluator
     success = False
 
     log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
@@ -313,7 +313,8 @@ async def run_single_task(
             score = (
                 correct_count / total_violations if total_violations > 0 else 0.0
             )
-        score = min(max(score, 0.0), 1.0)
+        # Clamp to strictly (0, 1) — evaluator rejects 0.0 and 1.0 exactly
+        score = min(max(score, 0.01), 0.99)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
     finally:
