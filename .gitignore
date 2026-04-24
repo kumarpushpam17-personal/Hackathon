@@ -1,5 +1,10 @@
 # Claude AI config
 .claude/
+FINALE_CHECKLIST.md
+CLAUDE.md
+
+# Hackathon organiser docs (reference only — not our work)
+final_docs/
 
 # Python
 __pycache__/

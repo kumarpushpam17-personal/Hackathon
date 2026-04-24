@@ -1,11 +1,64 @@
 # API Contract Validator — Claude Code Project Instructions
 
 ## Project Overview
-This is a submission for the **Meta PyTorch Hackathon (Round 1)** hosted on Scaler.
-- **Goal**: API Contract Validator — an OpenEnv RL environment where AI agents validate API payloads against OpenAPI specifications.
+
+We cleared **Round 1** of the **Meta PyTorch OpenEnv Hackathon × Scaler School of Technology** (52,000+ developers) and are competing in the **Grand Finale on Apr 25–26, 2026** at Scaler School of Technology, Bangalore.
+
+- **Round 1 submission**: API Contract Validator — an OpenEnv RL environment for validating API payloads against OpenAPI specs.
+- **Finale vision**: **Enterprise Contract Guardian** — a multi-service RL environment where an agent detects breaking changes, traces downstream blast radius across microservices, and proposes backward-compatible migration plans.
+- **Theme alignment**: Theme #3.1 (World Modeling → Professional Tasks) + ⭐ **Scaler AI Labs Bonus Prize** (Multi-App RL Environment for Enterprise Workflows).
 - **Dashboard**: https://www.scaler.com/school-of-technology/meta-pytorch-hackathon/dashboard#assessment
 - **GitHub Repo**: https://github.com/kumarpushpam17-personal/Hackathon
-- **OpenEnv Course Reference**: `../openenv-course/` (cloned reference material — read-only)
+
+### 📖 Reference Docs — Always Consult These
+
+| Location | What's in it | When to read |
+|---|---|---|
+| `final_docs/themes.md` | All 5 finale themes + Scaler AI Labs bonus + judging criteria + minimum requirements | When deciding scope, validating theme fit, checking required deliverables |
+| `final_docs/help_guide.md` | Official self-serve build guide (22 sections — env design, rewards, anti-hacking, training stack, 1-day plan) | Before every major design decision. §7 (rewards), §8 (anti-hacking), §15 (monitoring), §18 (execution plan) are highest-value |
+| `final_docs/resource.md` | Official links — OpenEnv repo, HF Hub, tutorials, YouTube, reward-engineering papers | When looking up SDK/API usage or training examples |
+| `../openenv-course/` | Read-only cloned course — modules 1–5 cover OpenEnv architecture, building envs, deployment, GRPO training | When implementing env/client/training code |
+| `FINALE_CHECKLIST.md` | Live to-win checklist — minimum requirements, judging-aligned tasks, risk tracker | Check/update at the start of every work session |
+
+---
+
+## Finale Vision — Enterprise Contract Guardian
+
+### One-Line Story (for the 3-min pitch)
+> "An engineer ships a 'small' API change Friday evening. Four downstream teams break on Monday. We built an environment that trains agents to catch this — not just spot the bad schema, but trace who it affects, propose a backward-compatible fix, and verify the fix doesn't cascade."
+
+### Theme #3.1 Alignment
+- ✅ Real interaction with tools, APIs, dynamic systems
+- ✅ Partially observable world (agent discovers consumer graph)
+- ✅ Multi-step orchestration (detect → trace → propose → validate)
+- ✅ Enterprise workflow nuance (backward compatibility, versioning, migration safety)
+
+### What We Add on Top of Round 1
+
+1. **Service Graph** — simulated enterprise with 3–5 microservices, each with its own OpenAPI spec + consumer declarations.
+2. **Long-horizon tasks** — episodes require multiple coordinated steps (not just "find the bug").
+3. **New actions** — `trace_impact`, `propose_fix`, `validate_fix`, alongside existing violation-reporting actions.
+4. **Independent reward functions** (per `help_guide.md §7`) — correctness, blast-radius accuracy, fix compatibility, format compliance, step efficiency, anti-hacking check.
+5. **Trained checkpoint** — real reward curve via TRL + Unsloth GRPO (onsite, days 1–2).
+
+---
+
+## Judging Criteria (Finale)
+
+Source: `final_docs/themes.md`. **All code decisions should trace back to one of these weights.**
+
+| Weight | Criterion | Our plan to win it |
+|:-:|---|---|
+| **40%** | **Environment Innovation** | Multi-service enterprise workflow — not a linter. Blast-radius tracing + backward-compat fix is the differentiator. |
+| **30%** | **Storytelling** | "Friday deploy breaks 4 teams" narrative. Visual service-graph demo. Concrete incident framing. |
+| **20%** | **Showing Improvement in Rewards** | Pre-compute baseline on day 0. Train onsite day 1 with TRL+Unsloth+GRPO. Plot reward curve. Before/after inference side-by-side. |
+| **10%** | **Reward & Pipeline Quality** | ≥ 5 independent reward functions (per `help_guide.md §7`). Anti-hacking checks. Deterministic grader. |
+
+### Minimum Requirements (must-haves — per `themes.md`)
+- [ ] Uses OpenEnv (latest release)
+- [ ] Minimal training script using Unsloth or HF TRL in Colab
+- [ ] Mini-blog on HuggingFace OR mini-video on YouTube (< 2 min)
+- [ ] Environment hosted on Hugging Face Spaces (OpenEnv-compliant)
 
 ---
 
@@ -148,10 +201,17 @@ python inference.py
 
 ## What Still Needs to Be Done
 
-1. **Deploy to HF Spaces** — Use `/hf-deploy` command for step-by-step guidance
-2. **Get baseline scores** — Run inference.py against all 3 tasks, document results in README
-3. **openenv validate** — Must pass before submission
-4. **Submit HF Space URL** on the Scaler dashboard before deadline
+> See `FINALE_CHECKLIST.md` for the complete, live to-win checklist.
+
+**Short version (high-level finale roadmap)**:
+1. Extend environment to multi-service (service graph + new actions) — see `FINALE_CHECKLIST.md` §Environment
+2. Add 2–3 long-horizon tasks (detect → trace → propose → validate) — §Tasks
+3. Add independent reward functions (≥ 5) per `help_guide.md §7` — §Rewards
+4. Deploy to HF Spaces (required minimum) — §Deployment
+5. Run baseline inference → save numbers for before/after comparison — §Training
+6. Onsite days 1–2: GRPO training with TRL + Unsloth → reward curve — §Training
+7. Record < 2 min mini-video + HF blog — §Deliverables
+8. Prepare 3-min pitch + demo — §Pitch
 
 ---
 

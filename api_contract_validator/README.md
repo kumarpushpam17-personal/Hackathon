@@ -10,44 +10,85 @@ tags:
 pinned: false
 ---
 
-# API Contract Validator — OpenEnv Environment
+# Enterprise Contract Guardian — OpenEnv Environment
 
-An OpenEnv RL environment where AI agents learn to validate API request/response
-payloads against OpenAPI specifications. Agents identify type mismatches, missing
-required fields, invalid enum values, format constraint violations, breaking API
-changes, cross-field arithmetic errors, and authentication schema violations.
+> **Meta PyTorch OpenEnv Hackathon × Scaler School of Technology — Grand Finale Submission**
+> **Theme #3.1**: World Modeling → Professional Tasks · ⭐ **Scaler AI Labs bonus track**: Multi-App RL Environment for Enterprise Workflows
 
-## Why This Environment?
+An OpenEnv RL environment that trains agents to do what senior platform engineers do when an API breaks in production: **detect the violation, trace which downstream services are affected, propose a backward-compatible fix, and verify the fix doesn't cascade**.
 
-API contract violations are one of the **top causes of production incidents** in
-microservice architectures. Every API integration requires validating payloads
-against specs — a tedious, error-prone task that developers perform daily. This
-environment trains agents to automate this critical workflow.
+## The Story
+
+> An engineer ships a "small" change to the Users API on Friday evening. It passes local tests. On Monday, **four downstream teams break** — the Orders service, the Billing pipeline, the Notification worker, and the Analytics ETL. The root cause: a single field renamed in one spec, with no awareness of who consumed it.
+>
+> This environment teaches agents the full workflow — not just "find the bug," but **reason about blast radius, propose fixes that preserve compatibility, and verify the migration across every consumer.**
+
+## Why This Environment Matters (Theme #3.1 Alignment)
+
+Per `themes.md` Theme #3.1: *"environments that require real interaction with tools, APIs, or dynamic systems where the model is expected to do real hard work instead of exploiting short-cuts."*
+
+- ✅ **Real tools/APIs**: OpenAPI specs, payloads, consumer service graphs
+- ✅ **Partially observable world**: agent discovers the consumer graph through queries
+- ✅ **Persistent state**: violations found, consumers traced, fixes proposed build up across steps
+- ✅ **Multi-step orchestration**: `detect → trace → propose → validate`
+- ✅ **Enterprise workflow nuance**: versioning, deprecation, backward compatibility
+- ✅ **Verifiable reward**: every step has a deterministic, objective grader
+
+## Architecture: Phase 1 → Phase 2 → Phase 3
+
+| Phase | What the agent does | Task examples |
+|---|---|---|
+| **Phase 1 — Detection** (inherited from Round 1) | Read one OpenAPI spec + payload, report violations | `find_type_mismatches`, `validate_nested_objects`, `detect_breaking_changes` |
+| **Phase 2 — Impact Tracing** | Given a detected breaking change, identify all downstream consumers whose contracts are violated | `trace_downstream_blast_radius` |
+| **Phase 3 — Fix & Verify** | Propose a backward-compatible migration; verify against every consumer spec | `propose_backward_compat_fix`, `multi_service_cascade_fix` |
 
 **Real-world applications:**
-- CI/CD pipeline contract testing
-- API gateway request/response validation
-- SDK compatibility checking between API versions
-- OAuth2 and auth schema enforcement
-- Migration safety audits
+- CI/CD contract gate that blocks a PR with predicted downstream impact
+- Automated migration-plan generator for API versioning
+- Enterprise API gateway pre-deployment safety check
+- SDK compatibility auditor across microservices
+- OAuth2/auth schema change impact analysis
 
 ## How It Works
 
-Each episode presents the agent with:
-1. An **OpenAPI specification** defining expected types, required fields, and constraints
-2. A **payload** containing planted violations
-
-The agent inspects both and reports violations **one per step**. The environment
-grades each report against ground-truth violations and provides immediate reward feedback.
+Each episode places the agent inside a **simulated enterprise** with 3–5 microservices, each owning an OpenAPI spec and declaring which other services consume it.
 
 ```
-reset()  →  Agent sees spec + payload with N hidden violations
-step(violation_report)  →  Correct? +1.0 | Wrong path, right type? +0.3 | False positive? -0.3 | Duplicate? -0.1
-step(HINT)  →  Receive a location clue at -0.5 cost
-step(DONE)  →  Episode ends with completeness bonus +0.5 × (found/total)
+Enterprise Service Graph
+┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+│ UsersService │ ─────▶ │ OrdersService │ ─────▶ │BillingService│
+└──────────────┘        └──────────────┘        └──────────────┘
+       │                        │
+       ▼                        ▼
+┌───────────────────┐    ┌──────────────────┐
+│ NotificationsSvc  │    │  AnalyticsETL    │
+└───────────────────┘    └──────────────────┘
 ```
 
-## Tasks (6 difficulty levels)
+### Episode Flow (Phase 2/3 tasks)
+
+```
+reset()
+  →  Agent receives: a changed spec (producer) + partial service graph.
+
+Phase 1 — Detection
+  step(violation_report)    →  Correct? +1.0 | Proximity +0.3 | False positive -0.3 | Duplicate -0.1
+
+Phase 2 — Impact Tracing
+  step(trace_impact)        →  For each consumer correctly flagged: +reward; missed consumer: penalty
+
+Phase 3 — Fix Proposal
+  step(propose_fix)         →  Fix validates against ALL consumers: +big reward | breaks ≥1 consumer: penalty
+  step(validate_fix)        →  Deterministic cross-spec check confirms/rejects the fix
+
+step(DONE)  →  Completeness bonus = 0.5 × (correct_violations / total) × (consumers_traced / total) × fix_valid
+```
+
+Phase 1 tasks retain the simple single-spec flow (used as curriculum starters — `help_guide.md §6`).
+
+## Tasks
+
+### Phase 1 — Detection (curriculum starters, inherited from Round 1)
 
 | Task | Difficulty | Violations | Max Steps | What the Agent Must Find |
 |------|-----------|------------|-----------|--------------------------|
@@ -57,6 +98,19 @@ step(DONE)  →  Episode ends with completeness bonus +0.5 × (found/total)
 | `validate_response_schema` | Expert | 10 | 25 | Subtle format errors in an API response: invalid date formats, pattern mismatches, out-of-range numerics, bad enum values. 2 variants |
 | `validate_cross_field_constraints` | Expert | 7 | 18 | Cross-field arithmetic and date ordering on Invoice API — line totals, subtotal sum, tax calculation, discount rules for trial accounts |
 | `validate_auth_request` | Expert | 6 | 14 | OAuth2 token and API key management violations — invalid grant types, bad scopes, MFA token patterns, IP format, rate limits. 2 variants |
+
+### Phase 2 — Impact Tracing (finale — multi-service)
+
+| Task | Difficulty | Max Steps | What the Agent Must Do |
+|---|---|---|---|
+| `trace_downstream_blast_radius` | Hard | 20 | Given a breaking change in a producer spec + a consumer service graph, identify every downstream service whose contract is violated. Graded on precision + recall against ground-truth consumer impact. |
+
+### Phase 3 — Fix & Verify (finale — full workflow)
+
+| Task | Difficulty | Max Steps | What the Agent Must Do |
+|---|---|---|---|
+| `propose_backward_compat_fix` | Expert | 25 | Given a detected breaking change, propose a migration (aliasing, deprecation, version bump). Graded by whether the fix validates against all consumer specs. |
+| `multi_service_cascade_fix` | Expert | 40 | Full workflow: `detect → trace → propose → validate` in one episode, across 3–5 services. Sparse reward with per-phase sub-rewards. |
 
 ### Randomised Episode Generation
 
@@ -71,14 +125,34 @@ All tasks support seed-based randomisation, making the environment suitable for
 
 ## Action Space
 
-Each step the agent submits a `ValidatorAction`:
+Each step the agent submits a `ValidatorAction`. The action type it sends depends on the current episode phase.
+
+### Detection actions (Phase 1)
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `action_type` | `str` | `report_violation` |
 | `field_path` | `str` | Dot-notation path to the violated field (e.g. `customer.email`, `items[1].quantity`). Special values: `DONE` to end episode, `HINT` for a location clue |
 | `violation_type` | `str` | One of: `type_mismatch`, `missing_required`, `invalid_enum`, `format_error`, `extra_field`, `breaking_change`, `cross_field_constraint` |
 | `description` | `str` | Human-readable explanation of the violation |
 | `suggested_fix` | `str` | Optional suggested correction |
+
+### Impact tracing actions (Phase 2 — finale)
+
+| Field | Type | Description |
+|---|---|---|
+| `action_type` | `str` | `trace_impact` |
+| `affected_services` | `list[str]` | Names of downstream services the agent believes are impacted |
+| `reasoning` | `str` | Brief justification for each entry |
+
+### Fix-proposal actions (Phase 3 — finale)
+
+| Field | Type | Description |
+|---|---|---|
+| `action_type` | `str` | `propose_fix` or `validate_fix` |
+| `fix_strategy` | `str` | One of: `field_alias`, `version_bump`, `deprecation_window`, `dual_write`, `consumer_patch` |
+| `spec_patch` | `dict` | JSON patch to apply to the producer spec |
+| `rationale` | `str` | Why this preserves backward compatibility |
 
 ## Observation Space
 
@@ -99,7 +173,9 @@ After each step the agent receives a `ValidatorObservation`:
 
 ## Reward Function
 
-Partial progress signals — not binary end-of-episode scoring:
+Multiple **independent** reward signals (per `help_guide.md §7`) — reduces reward-hacking risk, provides rich training signal.
+
+### Detection rewards (Phase 1)
 
 | Event | Reward | Rationale |
 |-------|--------|-----------|
@@ -110,7 +186,32 @@ Partial progress signals — not binary end-of-episode scoring:
 | False positive | **−0.3** | Penalises guessing |
 | DONE signal | **+0.5 × (found/total)** | Completeness bonus |
 
-**Final score** = `correct_violations / total_violations` clamped to `(0.01, 0.99)`
+### Impact-tracing rewards (Phase 2)
+
+| Event | Reward | Rationale |
+|---|---|---|
+| Correctly identified affected consumer | **+0.8** | Reward recall |
+| Missed affected consumer | **−0.5** | Penalise under-reporting |
+| False-flag unaffected consumer | **−0.4** | Penalise over-reporting |
+
+### Fix-proposal rewards (Phase 3)
+
+| Event | Reward | Rationale |
+|---|---|---|
+| Fix validates against ALL consumers | **+2.0** | Major incentive — this is the goal |
+| Fix breaks 1+ consumer | **−1.0** | Must be backward compatible |
+| Malformed spec patch | **−0.5** | Format compliance |
+| Invalid strategy for this violation class | **−0.3** | Encourages strategy selection |
+
+### Cross-cutting signals
+
+| Signal | Reward | Rationale (`help_guide.md §7`) |
+|---|---|---|
+| **Step efficiency** | +0.05 per unused step at DONE | Discourages padding |
+| **Format compliance** | −0.2 for malformed actions | Enforces schema |
+| **Anti-hacking (spam)** | −1.0 if > 3× total violations reported | Prevents "report everything" exploit |
+
+**Final episode score** = weighted blend of phase scores; see `server/rewards.py`.
 
 ## Setup
 
@@ -153,7 +254,7 @@ python inference.py
 openenv validate
 ```
 
-## Baseline Scores
+## Baseline Scores (Round 1 — Phase 1 tasks only)
 
 | Task | Model | Score | Steps |
 |------|-------|-------|-------|
@@ -166,6 +267,8 @@ openenv validate
 
 *Scores are approximate and may vary with temperature/sampling.*
 
+**Finale training plan (days 1–2 onsite)**: GRPO via TRL + Unsloth. Target: measurable lift on Phase 1 tasks and non-zero reward on Phase 2/3 tasks (baseline expected near zero — goal is to show the reward curve going up). See `help_guide.md §11` and `FINALE_CHECKLIST.md §6`.
+
 ## Project Structure
 
 ```
@@ -173,19 +276,46 @@ api_contract_validator/
 ├── openenv.yaml              # OpenEnv manifest
 ├── pyproject.toml            # Python project metadata
 ├── Dockerfile                # Container definition
-├── inference.py              # Baseline inference script
+├── inference.py              # Baseline inference script (OpenAI client)
 ├── README.md                 # This file
 ├── models.py                 # Pydantic models (Action, Observation, State)
 ├── client.py                 # WebSocket client (EnvClient subclass)
 ├── __init__.py               # Package exports
+├── tests/
+│   └── test_environment.py   # Verifies tasks, rewards, seed reproducibility
 └── server/
     ├── __init__.py
     ├── app.py                # FastAPI wiring (create_app)
-    ├── environment.py        # Core environment logic (reset/step/state)
-    ├── spec_generator.py     # Task scenarios with planted violations
-    ├── rewards.py            # Reward computation
+    ├── environment.py        # Core environment (reset/step/state) — orchestrates phases
+    ├── spec_generator.py     # Phase 1 task scenarios with planted violations
+    ├── service_graph.py      # [Finale] Simulated enterprise graph (producers + consumers)   ← NEW
+    ├── impact_tracer.py      # [Finale] Ground-truth consumer-impact computation               ← NEW
+    ├── fix_validator.py      # [Finale] Cross-spec fix verification                             ← NEW
+    ├── rewards.py            # Reward computation (multi-phase + independent signals)
     └── requirements.txt      # Server dependencies
 ```
+
+> `service_graph.py`, `impact_tracer.py`, `fix_validator.py` are the finale additions — to be built per `FINALE_CHECKLIST.md §1`.
+
+## Meeting Hackathon Minimum Requirements
+
+Per `themes.md`:
+
+| Requirement | Status |
+|---|---|
+| Uses OpenEnv (latest release) | ✅ (verify with `openenv validate`) |
+| Minimal training script (Unsloth / HF TRL) in Colab | 🔄 See `training/grpo_colab.ipynb` (finale) |
+| Mini-blog on HF or video < 2 min | 🔄 See `FINALE_CHECKLIST.md §7` |
+| Hosted on HF Spaces | 🔄 Deploy night of Apr 24 — see `/hf-deploy` command |
+
+## Judging Criteria Alignment
+
+| Weight | Criterion | How this project addresses it |
+|:-:|---|---|
+| **40%** | Environment Innovation | Multi-service enterprise workflow + blast-radius tracing + backward-compat fix loop. Goes beyond single-spec validation. |
+| **30%** | Storytelling | Concrete "Friday deploy breaks 4 teams" incident narrative + visual service graph. |
+| **20%** | Improvement in Rewards | Baseline scores captured pre-training; GRPO-trained checkpoint produces an observable reward curve (Phase 2/3 tasks start near zero). |
+| **10%** | Reward & Pipeline | 6+ independent reward functions, anti-hacking spam detector, format-compliance signal, deterministic grader. |
 
 ## License
 
