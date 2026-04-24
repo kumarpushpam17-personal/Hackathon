@@ -17,7 +17,7 @@ We cleared **Round 1** of the **Meta PyTorch OpenEnv Hackathon × Scaler School 
 | `final_docs/themes.md` | All 5 finale themes + Scaler AI Labs bonus + judging criteria + minimum requirements | When deciding scope, validating theme fit, checking required deliverables |
 | `final_docs/help_guide.md` | Official self-serve build guide (22 sections — env design, rewards, anti-hacking, training stack, 1-day plan) | Before every major design decision. §7 (rewards), §8 (anti-hacking), §15 (monitoring), §18 (execution plan) are highest-value |
 | `final_docs/resource.md` | Official links — OpenEnv repo, HF Hub, tutorials, YouTube, reward-engineering papers | When looking up SDK/API usage or training examples |
-| `../openenv-course/` | Read-only cloned course — modules 1–5 cover OpenEnv architecture, building envs, deployment, GRPO training | When implementing env/client/training code |
+| `openenv-course/` | Read-only cloned course — modules 1–5 cover OpenEnv architecture, building envs, deployment, GRPO training | When implementing env/client/training code |
 | `FINALE_CHECKLIST.md` | Live to-win checklist — minimum requirements, judging-aligned tasks, risk tracker | Check/update at the start of every work session |
 
 ---
@@ -65,15 +65,22 @@ Source: `final_docs/themes.md`. **All code decisions should trace back to one of
 ## Directory Layout
 
 ```
-hackathon/
-├── CLAUDE.md                              # This file (project root)
-├── openenv-course/                        # Reference course — read-only
+hackathon-api-contract-validator/          # ← git repo root (pushed to GitHub)
+├── CLAUDE.md                              # This file (gitignored — internal AI instructions)
+├── FINALE_CHECKLIST.md                    # Gitignored — internal to-win checklist
+├── .gitignore
+├── .claude/commands/                      # Gitignored — slash commands for this project
+├── final_docs/                            # Gitignored — hackathon organiser reference docs
+│   ├── themes.md                          # 5 themes + judging criteria + minimum requirements
+│   ├── help_guide.md                      # Official build guide (22 sections)
+│   └── resource.md                        # Links — OpenEnv, HF Hub, tutorials, papers
+├── openenv-course/                        # Gitignored — reference course (read-only)
 │   ├── module-1/README.md                 # Why OpenEnv, the RL loop, architecture
 │   ├── module-2/README.md                 # Using existing environments, policies
 │   ├── module-3/README.md                 # Deploying to HF Spaces, openenv push
 │   ├── module-4/README.md                 # Building your own environment (3-component pattern)
 │   └── module-5/README.md                 # GRPO training with TRL + OpenEnv
-└── api_contract_validator/                # ← THE SUBMISSION
+└── api_contract_validator/                # ← THE SUBMISSION (public)
     ├── openenv.yaml                       # OpenEnv manifest
     ├── pyproject.toml                     # Python metadata + dependencies
     ├── Dockerfile                         # HF Spaces deployment
@@ -83,12 +90,17 @@ hackathon/
     ├── client.py                          # ValidatorEnv (WebSocket EnvClient)
     ├── __init__.py                        # Package exports
     ├── uv.lock                            # Dependency lockfile
+    ├── tests/
+    │   └── test_environment.py            # pytest suite
     └── server/
         ├── __init__.py
         ├── app.py                         # FastAPI wiring via create_app()
         ├── environment.py                 # ValidatorEnvironment (reset/step/state)
-        ├── spec_generator.py              # 3 task scenarios with planted violations
-        ├── rewards.py                     # Reward computation (partial progress)
+        ├── spec_generator.py              # Phase 1 task scenarios with planted violations
+        ├── service_graph.py               # [Finale] Phase 2 — enterprise service graph
+        ├── impact_tracer.py               # [Finale] Phase 2 — consumer-impact ground truth
+        ├── fix_validator.py               # [Finale] Phase 3 — cross-spec fix verification
+        ├── rewards.py                     # Reward computation (multi-phase, independent signals)
         └── requirements.txt               # Server-side deps
 ```
 
@@ -221,8 +233,8 @@ python inference.py
 3. After changing `environment.py` → re-run `openenv validate`
 4. After changing `Dockerfile` → rebuild and test locally before deploying
 5. After changing `inference.py` → verify stdout format matches spec exactly
-6. For OpenEnv patterns → read `../openenv-course/module-4/README.md`
-7. For deployment guidance → read `../openenv-course/module-3/README.md`
+6. For OpenEnv patterns → read `openenv-course/module-4/README.md`
+7. For deployment guidance → read `openenv-course/module-3/README.md`
 
 ---
 
@@ -230,11 +242,11 @@ python inference.py
 
 | Module | File | When to Read |
 |--------|------|-------------|
-| Why OpenEnv | `../openenv-course/module-1/README.md` | Understanding the RL loop and architecture |
-| Using Environments | `../openenv-course/module-2/README.md` | Writing policies, type-safe models |
-| Deploying | `../openenv-course/module-3/README.md` | HF Spaces deployment, openenv push |
-| Building Environments | `../openenv-course/module-4/README.md` | 3-component pattern, models/server/client |
-| GRPO Training | `../openenv-course/module-5/README.md` | Training LLMs with this environment |
+| Why OpenEnv | `openenv-course/module-1/README.md` | Understanding the RL loop and architecture |
+| Using Environments | `openenv-course/module-2/README.md` | Writing policies, type-safe models |
+| Deploying | `openenv-course/module-3/README.md` | HF Spaces deployment, openenv push |
+| Building Environments | `openenv-course/module-4/README.md` | 3-component pattern, models/server/client |
+| GRPO Training | `openenv-course/module-5/README.md` | Training LLMs with this environment |
 
 ---
 
