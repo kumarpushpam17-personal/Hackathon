@@ -23,13 +23,16 @@ except Exception as exc:
 try:
     from ..models import ValidatorAction, ValidatorObservation
     from .environment import ValidatorEnvironment
+    from .logging_setup import configure_logging
 except (ImportError, ModuleNotFoundError):
     import sys
     import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from models import ValidatorAction, ValidatorObservation
     from server.environment import ValidatorEnvironment
+    from server.logging_setup import configure_logging
 
+configure_logging()
 
 app = create_app(
     ValidatorEnvironment,

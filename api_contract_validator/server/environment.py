@@ -11,11 +11,16 @@ Special field_path values:
   'HINT' — receive a location hint (costs -0.5 reward)
 """
 
+import json
+import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 from uuid import uuid4
 
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
+
+logger = logging.getLogger(__name__)
 
 try:
     from ..models import ValidatorAction, ValidatorObservation, ValidatorState
@@ -120,6 +125,10 @@ def _hint_section(field_path: str) -> str:
     return path
 
 
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 class ValidatorEnvironment(Environment):
     """API Contract Validator — an OpenEnv RL environment.
 
@@ -183,6 +192,15 @@ class ValidatorEnvironment(Environment):
             duplicate_reports=0,
             score=0.0,
         )
+
+        logger.info(json.dumps({
+            "event": "episode_start",
+            "episode_id": self._state.episode_id,
+            "task": self._state.task_name,
+            "total_violations": self._state.total_violations,
+            "max_steps": self._scenario.max_steps,
+            "ts": _now(),
+        }))
 
         return ValidatorObservation(
             done=False,
@@ -411,6 +429,33 @@ class ValidatorEnvironment(Environment):
         """Construct an observation from current state."""
         assert self._scenario is not None
         remaining = self._state.total_violations - self._state.correct_reports
+
+        logger.debug(json.dumps({
+            "event": "step",
+            "episode_id": self._state.episode_id,
+            "task": self._state.task_name,
+            "step": self._state.step_count,
+            "reward": round(reward, 4),
+            "correct_so_far": self._state.correct_reports,
+            "total_violations": self._state.total_violations,
+            "done": done,
+            "ts": _now(),
+        }))
+
+        if done:
+            logger.info(json.dumps({
+                "event": "episode_end",
+                "episode_id": self._state.episode_id,
+                "task": self._state.task_name,
+                "score": round(self._state.score, 4),
+                "steps": self._state.step_count,
+                "correct": self._state.correct_reports,
+                "total": self._state.total_violations,
+                "false_positives": self._state.false_positives,
+                "duplicates": self._state.duplicate_reports,
+                "ts": _now(),
+            }))
+
         return ValidatorObservation(
             done=done,
             reward=reward,
