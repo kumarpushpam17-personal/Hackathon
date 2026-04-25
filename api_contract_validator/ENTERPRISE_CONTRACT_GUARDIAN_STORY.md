@@ -156,7 +156,180 @@ flowchart TD
 
 This matters because RL needs signal. A binary "pass/fail" reward would make learning slow and brittle. This environment gives a useful reward even when the agent is partially right.
 
-## 7. Real-Time Example 1: UserService Email Rename
+## 7. Implemented Feature Coverage
+
+This is the full environment surface implemented in the submission.
+
+| Area | Implemented capability | Why it matters |
+|---|---|---|
+| OpenEnv environment | Standard `reset`, `step`, and `state` lifecycle | Judges can run the environment like any OpenEnv-compatible benchmark |
+| Single LLM agent | One policy interacts with a multi-service enterprise world | Correct fit for Theme 3.1, not a multi-agent theme |
+| Phase 1 detection | Agent finds payload/schema violations one at a time | Builds a curriculum before harder enterprise tasks |
+| Phase 2 impact tracing | Agent identifies affected downstream services | Tests service-dependency reasoning, not just schema matching |
+| Phase 3 fix and verify | Agent proposes a backward-compatible migration | Tests whether the agent can solve the incident, not only diagnose it |
+| Cascade workflow | Agent moves from tracing into fix proposal in one episode | Demonstrates multi-step orchestration and state tracking |
+| Seeded scenarios | Reset accepts deterministic seeds | Supports both reproducible evaluation and varied training episodes |
+| Composable rewards | Reward components are separated by behavior | Gives richer learning signal and makes reward hacking easier to inspect |
+| Baseline inference | `inference.py` runs all tasks with an OpenAI-compatible client | Produces before/after metrics for judging |
+| GRPO training | `training/train.py` connects to the live environment reward | The model learns from environment experience instead of a static dataset |
+| HF Space deployment | Docker/OpenEnv app runs on Hugging Face Spaces | Judges can pull and evaluate the environment from the submitted URL |
+
+## 8. Complete Task Matrix
+
+| Task | Phase | What the agent must do | Max steps |
+|---|---:|---|---:|
+| `find_type_mismatches` | 1 | Find type mismatches, missing fields, enum errors, and format errors in a simple request | 10 |
+| `validate_nested_objects` | 1 | Validate nested objects and arrays using dot paths and bracket paths | 15 |
+| `detect_breaking_changes` | 1 | Compare v1/v2 API specs and find breaking changes | 20 |
+| `validate_response_schema` | 1 | Validate response formats, patterns, ranges, enums, and subtle schema constraints | 25 |
+| `validate_cross_field_constraints` | 1 | Check arithmetic, date ordering, item counts, and conditional business rules | 18 |
+| `validate_auth_request` | 1 | Validate OAuth/API-key payload constraints, scopes, patterns, and limits | 14 |
+| `trace_downstream_blast_radius` | 2 | Identify every consumer broken by a producer API change | 20 |
+| `propose_backward_compat_fix` | 3 | Propose a migration strategy and patch that keeps consumers working | 25 |
+| `multi_service_cascade_fix` | 2 + 3 | Trace the blast radius, then propose a fix in one episode | 40 |
+
+## 9. Complete Action Space
+
+The environment exposes one typed action model with phase-specific fields.
+
+| Action | Used in | Required fields | Purpose |
+|---|---|---|---|
+| `report_violation` | Phase 1 | `field_path`, `violation_type`, `description`, optional `suggested_fix` | Report one schema or contract violation |
+| `trace_impact` | Phase 2 | `affected_services`, `reasoning` | List downstream services impacted by the breaking change |
+| `propose_fix` | Phase 3 | `fix_strategy`, `spec_patch`, `rationale` | Submit a backward-compatible migration proposal |
+| `validate_fix` | Phase 3 | `fix_strategy`, `spec_patch`, `rationale` | Same validation path as fix proposal; useful for explicit verify-style actions |
+| `DONE` | Phase 1 special signal | `field_path="DONE"` | End the episode and collect completeness bonus |
+| `HINT` | Phase 1 special signal | `field_path="HINT"` | Ask for a location clue at a reward cost |
+
+Allowed fix strategies:
+
+| Strategy | Expected patch shape | Best fit |
+|---|---|---|
+| `field_alias` | `{"aliases": {"old_field": "new_field"}}` | Field rename where old consumers need the old field name |
+| `version_bump` | `{"versions": ["v1.0", "v2.0"]}` | Breaking change isolated behind a new version |
+| `deprecation_window` | `{"deprecated_fields": [...]}` or `{"deprecated_enum_values": [...]}` | Keep old contract temporarily while warning consumers |
+| `dual_write` | `{"emit_fields": ["old", "new"]}` | Emit old and new names during migration |
+| `consumer_patch` | `{"consumers_to_migrate": [...]}` | Cases where producer cannot preserve old behavior cleanly, such as enum narrowing |
+
+## 10. Complete Reward Criteria
+
+The reward is designed as independent signals instead of one monolithic score.
+
+### Phase 1: Detection Rewards
+
+| Event | Reward | What it teaches |
+|---|---:|---|
+| Correct path and correct violation type | `+1.0` | Report exact contract issues |
+| Correct path but wrong type | `+0.3` | Finding the right location is partial progress |
+| Duplicate report | `-0.1` | Track what was already found |
+| False positive | `-0.3` | Do not guess or over-report |
+| `HINT` requested | `-0.5` | Hints are allowed but expensive |
+| `DONE` submitted | `+0.5 * completeness` | Finish only after enough violations are found |
+| Final Phase 1 score | `correct / total`, clamped to `0.01..0.99` | Normalized episode metric |
+
+### Phase 2: Impact-Tracing Rewards
+
+| Event | Reward | What it teaches |
+|---|---:|---|
+| Correctly flagged affected consumer | `+0.8` each | Maximize recall for true blast radius |
+| Missed affected consumer | `-0.5` each | Do not under-report broken teams |
+| False-flagged unaffected consumer | `-0.4` each | Do not warn unrelated teams |
+| Unknown service name | `-0.2` each | Use real service names from the graph |
+| Final Phase 2 score | F1 score, clamped to `0.01..0.99` | Balance precision and recall |
+
+### Phase 3: Fix-Validation Rewards
+
+| Event | Reward | What it teaches |
+|---|---:|---|
+| Fix validates against every consumer | `+2.0` | The migration must work end to end |
+| Fix breaks a consumer | `-1.0` per failing consumer | Do not optimize for only one downstream team |
+| Malformed spec patch | `-0.5` | Use the expected patch schema |
+| Strategy unacceptable for scenario | `-0.3` | Pick a migration strategy that fits the failure mode |
+| Final Phase 3 score | Passing consumers / total consumers, clamped to `0.01..0.99` | Reward partial compatibility while still favoring complete fixes |
+
+### Anti-Hacking And Format Hardening
+
+The reward module also includes cross-cutting hardening components:
+
+| Signal | Reward | Purpose |
+|---|---:|---|
+| Malformed action component | `-0.2` | Penalize action JSON that does not match the expected schema |
+| Spam penalty component | `-1.0` if reports exceed `3x` planted violations | Discourage "report everything" reward hacking |
+| Hard step budget | Episode ends at task-specific max steps | Prevents endless probing |
+
+These hardening signals are documented because they are part of the reward design and show that the environment was built with reward-hacking resistance in mind. The most visible runtime penalties in the current demo path are malformed fix patches, invalid phase actions, false positives, false flags, duplicates, hints, and missed consumers.
+
+## 11. State And Memory Inside The Environment
+
+The agent is a single LLM policy, but the environment maintains episode state across turns.
+
+| State field | Meaning |
+|---|---|
+| `task_name` | Current task being evaluated |
+| `phase` | Current workflow stage: detection, tracing, or fix proposal |
+| `step_count` | Number of actions taken in the episode |
+| `total_violations` | Number of planted Phase 1 violations |
+| `correct_reports` | Number of correctly found Phase 1 violations |
+| `false_positives` | Number of incorrect Phase 1 reports |
+| `duplicate_reports` | Number of repeated reports |
+| `total_consumers` | Number of downstream consumers in the enterprise graph |
+| `consumers_correctly_traced` | Number of impacted services correctly identified |
+| `consumers_missed` | Number of impacted services missed |
+| `consumers_false_flagged` | Number of safe services incorrectly flagged |
+| `fix_attempts` | Number of submitted fix attempts |
+| `fix_validated` | Whether the current fix passes every consumer |
+| `fix_breaks_consumers` | Number of consumers still failing |
+| `score` | Normalized final episode score |
+
+This is the "memory" in the environment: each observation reflects what has happened so far, and each next action is graded against that evolving state.
+
+## 12. Training Loop: How Experience Becomes Learning
+
+```mermaid
+flowchart LR
+    A[Seeded reset] --> B[Observation]
+    B --> C[Prompt to LLM policy]
+    C --> D[Sample completions]
+    D --> E[Parse structured action]
+    E --> F[Environment step]
+    F --> G[Reward from deterministic grader]
+    G --> H[GRPO ranks completions]
+    H --> I[Update LoRA policy]
+    I --> C
+```
+
+Training uses the live environment as the reward function:
+
+1. Build prompts from seeded environment resets.
+2. Ask the model to produce structured JSON actions.
+3. Parse the action into the OpenEnv action model.
+4. Reset the environment to the matching task and seed before scoring.
+5. Step the environment and collect the reward.
+6. Use GRPO to reinforce completions that earn higher reward.
+7. Save `reward_curve.png` and training state for the README.
+
+This is important for judging: the training loop is not static supervised fine-tuning. It connects to the environment, receives real rewards, and updates the agent based on experience.
+
+## 13. Deployment And Compliance
+
+The submission includes the pieces judges expect for an OpenEnv environment:
+
+| Requirement | Where it is handled |
+|---|---|
+| OpenEnv-compatible app | `server/environment.py`, `server/app.py`, `openenv.yaml` |
+| Hosted environment | Hugging Face Space: `pushpam14/api-contract-validator` |
+| Docker runtime | `Dockerfile` with FastAPI server on port `7860` |
+| Health endpoint | `/health` |
+| Reset endpoint | `POST /reset` |
+| Step endpoint | `POST /step` |
+| State endpoint | `GET /state` |
+| Typed client | `client.py` |
+| Inference script | `inference.py` |
+| Training script | `training/train.py` |
+| Colab notebook | `training/grpo_colab.ipynb` |
+| Baseline evidence | `baseline_scores.json` and `results/baseline_table.md` |
+
+## 14. Real-Time Example 1: UserService Email Rename
 
 ### Incident
 
@@ -236,7 +409,7 @@ Then it proposes:
 
 The fix lets old consumers keep reading `email`. New consumers can adopt `email_address`. The company gets a migration window instead of a Monday outage.
 
-## 8. Real-Time Example 2: OrdersService Status Enum Narrowing
+## 15. Real-Time Example 2: OrdersService Status Enum Narrowing
 
 ### Incident
 
@@ -306,7 +479,7 @@ The fix is different from the email rename case. A field alias does not restore 
 
 The environment rewards the agent for recognizing that the safe consumer should not be touched. That is the difference between real blast-radius analysis and noisy "warn everybody" automation.
 
-## 9. The Full Episode Lifecycle
+## 16. The Full Episode Lifecycle
 
 ```mermaid
 sequenceDiagram
@@ -330,7 +503,7 @@ sequenceDiagram
 
 The key technical principle is determinism. The grader knows the planted violations and expected affected consumers. That makes the reward objective, repeatable, and suitable for training.
 
-## 10. Why Training Can Improve The Agent
+## 17. Why Training Can Improve The Agent
 
 The baseline model already understands many simple schema issues, but it struggles where exact action formatting and enterprise reasoning matter.
 
@@ -346,7 +519,7 @@ GRPO training can improve behavior because every sampled completion receives dir
 - Correct consumer list gets more reward than over-warning every service.
 - Fixes that preserve every consumer get more reward than fixes that only look plausible.
 
-## 11. What Makes This Submission Strong
+## 18. What Makes This Submission Strong
 
 The project has a clear judge-facing story:
 
@@ -357,7 +530,7 @@ The project has a clear judge-facing story:
 
 The novelty is not "schema validation." The novelty is turning multi-service contract impact analysis into a trainable RL environment.
 
-## 12. What Still Must Be Added Before Final Submission
+## 19. What Still Must Be Added Before Final Submission
 
 The environment and tests are in good shape, but the final submission needs visible training evidence:
 
@@ -370,7 +543,6 @@ The environment and tests are in good shape, but the final submission needs visi
 
 Without those artifacts, the project is strong on innovation and story, but weaker on the 20 percent "Improvement in Rewards" judging criterion.
 
-## 13. Two-Minute Pitch Version
+## 20. Two-Minute Pitch Version
 
 "Enterprise API breaks rarely happen because one schema is invalid. They happen because a small producer change silently breaks downstream consumers. Our environment trains an agent to handle the full platform-engineering workflow: detect the contract violation, trace the blast radius across services, propose a backward-compatible migration, and validate that migration against every consumer contract. The reward is composable: correct violations, correct consumers, missed consumers, false flags, malformed fixes, and cross-consumer compatibility are all scored independently. This teaches a model a real enterprise skill that standard LLMs do not reliably perform today."
-
