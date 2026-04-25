@@ -356,12 +356,42 @@ def main() -> None:
     state_path.write_text(json.dumps(trainer.state.log_history, indent=2))
     print(f"[INFO] wrote {state_path}")
 
-    # 9. Push checkpoint
+    # 9. Push checkpoint AND training artefacts (reward_curve, state JSON)
+    #    HF Jobs containers are ephemeral — anything written under
+    #    results/ is lost when the job exits. To make the reward curve
+    #    available after the job finishes, we upload it to the same HF
+    #    Hub model repo where the LoRA adapter goes, under a
+    #    "training_artifacts/" path.
     if cfg.push_to_hub_id:
         print(f"[INFO] pushing adapter to {cfg.push_to_hub_id}")
         model.push_to_hub(cfg.push_to_hub_id, token=os.getenv("HF_TOKEN"))
 
-    asyncio.get_event_loop().run_until_complete(env.close())
+        # Upload training artefacts to the same repo
+        try:
+            from huggingface_hub import HfApi
+            api = HfApi(token=os.getenv("HF_TOKEN"))
+            for fname in ("reward_curve.png", "training_state.json"):
+                local = results_dir / fname
+                if local.exists():
+                    print(f"[INFO] uploading {fname} -> {cfg.push_to_hub_id}/training_artifacts/{fname}")
+                    api.upload_file(
+                        path_or_fileobj=str(local),
+                        path_in_repo=f"training_artifacts/{fname}",
+                        repo_id=cfg.push_to_hub_id,
+                        repo_type="model",
+                        commit_message=f"Upload {fname} from GRPO run",
+                    )
+                else:
+                    print(f"[WARN] {local} not found — skipping upload")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[WARN] artefact upload failed: {exc}")
+
+    # Clean up the dataset-build env client (reward_fn uses its own per-call clients)
+    try:
+        asyncio.get_event_loop().run_until_complete(env.close())
+    except Exception:  # noqa: BLE001
+        pass
+
     print("[INFO] done.")
 
 
