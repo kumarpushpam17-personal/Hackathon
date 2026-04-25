@@ -276,21 +276,23 @@ openenv validate
 
 See [`training/README.md`](training/README.md) for the three ways to run the pipeline (Colab / HF Jobs / local).
 
-### Baseline Scores (pre-training)
+### Baseline Scores (pre-training, Qwen2.5-72B-Instruct, recorded 2026-04-25)
 
-| Task | Phase | Model | Score | Steps |
-|------|-------|-------|-------|-------|
-| `find_type_mismatches` | 1 | Qwen2.5-72B-Instruct | ~0.75 | 5–7 |
-| `validate_nested_objects` | 1 | Qwen2.5-72B-Instruct | ~0.57 | 8–12 |
-| `detect_breaking_changes` | 1 | Qwen2.5-72B-Instruct | ~0.44 | 12–18 |
-| `validate_response_schema` | 1 | Qwen2.5-72B-Instruct | ~0.40 | 15–22 |
-| `validate_cross_field_constraints` | 1 | Qwen2.5-72B-Instruct | ~0.43 | 10–16 |
-| `validate_auth_request` | 1 | Qwen2.5-72B-Instruct | ~0.60 | 8–12 |
-| `trace_downstream_blast_radius` | 2 | Qwen2.5-72B-Instruct | ~0.10 | — |
-| `propose_backward_compat_fix` | 3 | Qwen2.5-72B-Instruct | ~0.05 | — |
-| `multi_service_cascade_fix` | 3 | Qwen2.5-72B-Instruct | ~0.02 | — |
+| Task | Phase | Score | Steps | Success |
+|---|---|---|---|---|
+| `find_type_mismatches` | 1 | 0.75 | 4 | ✅ |
+| `validate_nested_objects` | 1 | 0.99 | 12 | ✅ |
+| `detect_breaking_changes` | 1 | **0.01** | 20 | ⛔ |
+| `validate_response_schema` | 1 | 0.99 | 10 | ✅ |
+| `validate_cross_field_constraints` | 1 | 0.86 | 8 | ✅ |
+| `validate_auth_request` | 1 | 0.99 | 10 | ✅ |
+| `trace_downstream_blast_radius` | 2 | 0.67 | 1 | ✅ |
+| `propose_backward_compat_fix` | 3 | 0.99 | 1 | ✅ |
+| `multi_service_cascade_fix` | 2+3 | 0.99 | 2 | ✅ |
 
-*Phase 2/3 baselines are near-zero by design — the goal of training is to show the reward curve going up from there.*
+Full per-step rewards in [`../baseline_scores.json`](../baseline_scores.json).
+
+**Headroom for training**: `detect_breaking_changes` at 0.01 is the biggest opportunity — the 72B model finds the right field paths (proximity hits) but never predicts `violation_type='breaking_change'` correctly. Phase 2 trace is also under-shooting recall. After GRPO training the trained-model row will go alongside this table.
 
 ## Why This Matters
 

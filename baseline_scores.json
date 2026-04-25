@@ -1,0 +1,158 @@
+{
+  "model": "Qwen/Qwen2.5-72B-Instruct",
+  "benchmark": "api_contract_validator",
+  "date": "2026-04-25",
+  "scores": {
+    "find_type_mismatches": 0.75,
+    "validate_nested_objects": 0.99,
+    "detect_breaking_changes": 0.01,
+    "validate_response_schema": 0.99,
+    "validate_cross_field_constraints": 0.8571,
+    "validate_auth_request": 0.99,
+    "trace_downstream_blast_radius": 0.6667,
+    "propose_backward_compat_fix": 0.99,
+    "multi_service_cascade_fix": 0.99
+  },
+  "details": [
+    {
+      "task": "find_type_mismatches",
+      "score": 0.75,
+      "steps": 4,
+      "success": true,
+      "rewards": [
+        1.0,
+        1.0,
+        1.0,
+        0.375
+      ]
+    },
+    {
+      "task": "validate_nested_objects",
+      "score": 0.99,
+      "steps": 12,
+      "success": true,
+      "rewards": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        -0.3,
+        1.0,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.5,
+        1.0
+      ]
+    },
+    {
+      "task": "detect_breaking_changes",
+      "score": 0.01,
+      "steps": 20,
+      "success": false,
+      "rewards": [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3
+      ]
+    },
+    {
+      "task": "validate_response_schema",
+      "score": 0.99,
+      "steps": 10,
+      "success": true,
+      "rewards": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "task": "validate_cross_field_constraints",
+      "score": 0.8571,
+      "steps": 8,
+      "success": true,
+      "rewards": [
+        1.0,
+        1.0,
+        -0.3,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.4286
+      ]
+    },
+    {
+      "task": "validate_auth_request",
+      "score": 0.99,
+      "steps": 10,
+      "success": true,
+      "rewards": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.5,
+        1.0
+      ]
+    },
+    {
+      "task": "trace_downstream_blast_radius",
+      "score": 0.6667,
+      "steps": 1,
+      "success": true,
+      "rewards": [
+        0.1
+      ]
+    },
+    {
+      "task": "propose_backward_compat_fix",
+      "score": 0.99,
+      "steps": 1,
+      "success": true,
+      "rewards": [
+        2.0
+      ]
+    },
+    {
+      "task": "multi_service_cascade_fix",
+      "score": 0.99,
+      "steps": 2,
+      "success": true,
+      "rewards": [
+        1.6,
+        2.0
+      ]
+    }
+  ]
+}
