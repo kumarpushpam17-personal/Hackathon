@@ -310,10 +310,23 @@ This is a genuinely underexplored domain in RL/LLM training — no prior benchma
 
 | Resource | URL |
 |---|---|
-| HuggingFace Space | *(deploy link — add after deployment)* |
-| Training Notebook (Colab) | *(add after onsite training)* |
+| HuggingFace Space (live env) | https://huggingface.co/spaces/pushpam14/api-contract-validator |
+| Live env endpoint | https://pushpam14-api-contract-validator.hf.space |
+| Health check | https://pushpam14-api-contract-validator.hf.space/health |
+| Training Notebook (Colab) | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
+| GitHub repo | https://github.com/kumarpushpam17-personal/Hackathon |
 | Demo Video / HF Blog | *(add after recording)* |
 | WandB Training Run | *(add after training)* |
+
+Quick test:
+
+```bash
+curl https://pushpam14-api-contract-validator.hf.space/health
+# {"status":"healthy"}
+
+curl -X POST https://pushpam14-api-contract-validator.hf.space/reset \
+     -H "Content-Type: application/json" -d '{}'
+```
 
 ## Project Structure
 
