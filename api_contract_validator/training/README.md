@@ -68,13 +68,51 @@ python training/plot.py
 
 ## What the judges look at
 
-After running, **commit** these to the repo:
+The hackathon's "Improvement in Rewards" 20% criterion explicitly asks for a **before vs after comparison**. Per the official Q&A:
+
+> "You're expected to show before vs after behavior. Run inference using both models and include the comparison (metrics, rewards, or outputs) in the README."
+
+So after training, you must commit ALL FOUR of these:
 
 ```
-baseline_scores.json                            # repo root
-trained_scores.json                             # repo root
-api_contract_validator/results/reward_curve.png
-api_contract_validator/results/before_after.png
+baseline_scores.json                                     # already committed (the "before")
+trained_scores.json                                      # post-training inference output
+api_contract_validator/results/reward_curve.png          # GRPO training curve
+api_contract_validator/results/before_after.png          # bar chart comparison
 ```
 
-The README's "Training Results" section reads from these files. The plots are evidence of the "Improvement in Rewards" 20% criterion.
+## Post-training commit checklist
+
+Once the Colab notebook finishes, run this on your laptop:
+
+```bash
+cd ~/work/hackathon/hackathon-api-contract-validator
+
+# 1. Pull the four artifacts down from Colab into local repo
+#    (Colab File pane → right-click → Download for each)
+#
+#    Place them at:
+#      ./trained_scores.json
+#      ./api_contract_validator/results/reward_curve.png
+#      ./api_contract_validator/results/before_after.png
+
+# 2. Edit api_contract_validator/README.md
+#    - Replace each "_(after training)_" placeholder in the Before vs After
+#      table with the score from trained_scores.json
+#    - Uncomment the two `<!-- ![](results/...) -->` lines so the plots render
+#    - Add the WandB run URL in the Links section (and to the WandB row in
+#      the Training Results table)
+
+# 3. Run validation
+PYTHONPATH=api_contract_validator python3 -m pytest \
+    api_contract_validator/tests/test_environment.py -q
+
+# 4. Commit + push
+git add trained_scores.json \
+        api_contract_validator/results/*.png \
+        api_contract_validator/README.md
+git commit -m "Add post-training results: trained scores + reward plots"
+git push
+```
+
+That single push is the "after" half of the before-vs-after evidence judges grade.
