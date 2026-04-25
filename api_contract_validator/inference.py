@@ -35,6 +35,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 HF_TOKEN = os.getenv("HF_TOKEN")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+SCORES_OUT_PATH = os.getenv("SCORES_OUT_PATH")  # e.g. baseline_scores.json
 
 BENCHMARK = "api_contract_validator"
 PHASE1_TASKS = [
@@ -465,8 +466,12 @@ async def run_single_task(
     client: OpenAI,
     env: ValidatorEnv,
     task_name: str,
-) -> None:
-    """Run a single task episode and emit structured logs."""
+) -> Dict[str, Any]:
+    """Run a single task episode and emit structured logs.
+
+    Returns a dict with the per-task summary so the caller can aggregate
+    a baseline_scores.json or trained_scores.json file.
+    """
     max_steps = MAX_STEPS_PER_TASK.get(task_name, 15)
     history: List[str] = []
     rewards: List[float] = []
@@ -571,9 +576,19 @@ async def run_single_task(
     finally:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
+    return {
+        "task": task_name,
+        "score": round(score, 4),
+        "steps": steps_taken,
+        "success": success,
+        "rewards": [round(r, 4) for r in rewards],
+    }
+
 
 async def main() -> None:
-    """Run the inference agent against all tasks."""
+    """Run the inference agent against all tasks and optionally save scores."""
+    from datetime import datetime, timezone
+
     openai_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
     if LOCAL_IMAGE_NAME:
@@ -582,14 +597,28 @@ async def main() -> None:
         env_url = os.getenv("ENV_BASE_URL", "http://localhost:7860")
         env = ValidatorEnv(base_url=env_url)
 
+    results: List[Dict[str, Any]] = []
     try:
         for task_name in TASKS:
-            await run_single_task(openai_client, env, task_name)
+            res = await run_single_task(openai_client, env, task_name)
+            results.append(res)
     finally:
         try:
             await env.close()
         except Exception as exc:
             print(f"[DEBUG] env.close() error: {exc}", flush=True)
+
+    if SCORES_OUT_PATH:
+        scores_obj = {
+            "model": MODEL_NAME,
+            "benchmark": BENCHMARK,
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "scores": {r["task"]: r["score"] for r in results},
+            "details": results,
+        }
+        with open(SCORES_OUT_PATH, "w", encoding="utf-8") as fh:
+            json.dump(scores_obj, fh, indent=2)
+        print(f"[INFO] wrote {SCORES_OUT_PATH}", flush=True)
 
 
 if __name__ == "__main__":

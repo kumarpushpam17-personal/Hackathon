@@ -272,7 +272,9 @@ openenv validate
 
 | Phase | WandB Run | Notebook |
 |---|---|---|
-| Phase 1 GRPO | *(link after training)* | *(link after training)* |
+| GRPO (Phase 1 + Phase 2/3) | *(link after training)* | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
+
+See [`training/README.md`](training/README.md) for the three ways to run the pipeline (Colab / HF Jobs / local).
 
 ### Baseline Scores (pre-training)
 
