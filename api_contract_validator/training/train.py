@@ -271,12 +271,28 @@ def main() -> None:
     print(f"[INFO] building dataset for tasks={train_tasks}")
     train_dataset = build_train_dataset(env, train_tasks)
 
-    # 4. Load model + LoRA
+    # 4. Detect GPU capability for mixed precision.
+    #    bf16 only works on Ampere+ GPUs (A10G, A100, L4, H100, H200).
+    #    T4 (CUDA 7.5) only supports fp16.
+    import torch  # type: ignore
+    use_bf16 = (
+        torch.cuda.is_available()
+        and torch.cuda.get_device_capability()[0] >= 8
+    )
+    torch_dtype = torch.bfloat16 if use_bf16 else torch.float16
+    print(f"[INFO] mixed precision: {'bf16' if use_bf16 else 'fp16'}")
+
+    # 5. Load model + LoRA. Pass `dtype` explicitly so the model weights
+    #    match the dtype the GRPO trainer will use. Without this Unsloth
+    #    loads in fp16 by default; with bf16=True in GRPOConfig the LoRA
+    #    forward pass crashes with "self and mat2 must have the same
+    #    dtype, but got Half and Float".
     print(f"[INFO] loading model: {cfg.base_model}")
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=cfg.base_model,
         max_seq_length=cfg.max_seq_length,
         load_in_4bit=True,
+        dtype=torch_dtype,
     )
     model = FastLanguageModel.get_peft_model(
         model,
@@ -288,16 +304,6 @@ def main() -> None:
         ],
         random_state=cfg.seed,
     )
-
-    # 5. GRPO trainer
-    # bf16 only works on Ampere+ GPUs (A10G, A100, L4, H100, H200).
-    # T4 (CUDA 7.5) only supports fp16. Detect at runtime.
-    import torch  # type: ignore
-    use_bf16 = (
-        torch.cuda.is_available()
-        and torch.cuda.get_device_capability()[0] >= 8
-    )
-    print(f"[INFO] mixed precision: {'bf16' if use_bf16 else 'fp16'}")
 
     grpo_cfg = GRPOConfig(
         output_dir=cfg.output_dir,
