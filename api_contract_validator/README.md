@@ -69,7 +69,7 @@ Enterprise Service Graph
 
 ```
 reset()
-  →  Agent receives: a changed spec (producer) + partial service graph.
+  →  Agent receives: a changed spec (producer) + service graph with consumer declarations.
 
 Phase 1 — Detection
   step(violation_report)    →  Correct? +1.0 | Proximity +0.3 | False positive -0.3 | Duplicate -0.1
@@ -207,7 +207,7 @@ Multiple **independent** reward signals (per `help_guide.md §7`) — reduces re
 
 | Signal | Reward | Rationale (`help_guide.md §7`) |
 |---|---|---|
-| **Step efficiency** | +0.05 per unused step at DONE | Discourages padding |
+| **Step budget** | Hard max-step limit per task | Discourages padding and forces concise analysis |
 | **Format compliance** | −0.2 for malformed actions | Enforces schema |
 | **Anti-hacking (spam)** | −1.0 if > 3× total violations reported | Prevents "report everything" exploit |
 
@@ -318,6 +318,7 @@ This is a genuinely underexplored domain in RL/LLM training — no prior benchma
 | Live env endpoint | https://pushpam14-api-contract-validator.hf.space |
 | Health check | https://pushpam14-api-contract-validator.hf.space/health |
 | Training Notebook (Colab) | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
+| Story + Technical Guide | [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) |
 | GitHub repo | https://github.com/kumarpushpam17-personal/Hackathon |
 | Demo Video / HF Blog | *(add after recording)* |
 | WandB Training Run | *(add after training)* |

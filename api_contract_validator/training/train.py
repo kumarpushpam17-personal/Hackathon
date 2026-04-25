@@ -109,6 +109,13 @@ class TrainConfig:
 # ── Reward function: rolls out one step against the live env ─────────────
 
 
+def _list_value(values: Any, index: int, default: Any) -> Any:
+    """Return ``values[index]`` for TRL batch kwargs, with a safe fallback."""
+    if isinstance(values, list) and index < len(values):
+        return values[index]
+    return default
+
+
 def make_reward_fn(env_client, task_pool: List[str]):
     """Return a TRL-compatible reward_fn that grades each completion via env.
 
@@ -121,15 +128,24 @@ def make_reward_fn(env_client, task_pool: List[str]):
 
     def reward_fn(prompts, completions, **kwargs):  # noqa: ARG001
         rewards: List[float] = []
-        loop = asyncio.get_event_loop()
-        for completion in completions:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        task_names = kwargs.get("task") or []
+        seeds = kwargs.get("seed") or []
+
+        for idx, completion in enumerate(completions):
             text = completion if isinstance(completion, str) else completion[0]["content"]
+            task_name = _list_value(task_names, idx, task_pool[0])
+            seed = _list_value(seeds, idx, 0)
             try:
+                loop.run_until_complete(
+                    env_client.reset(task_name=task_name, seed=int(seed))
+                )
                 action_data = parse_llm_response(text)
                 action = _build_action(action_data)
-                # one-step roll-out: reset → step → grade → reset
-                # Each prompt is associated with a fresh episode in train_dataset,
-                # so we use the env's most recent reset state as scoring context.
                 step_result = loop.run_until_complete(env_client.step(action))
                 rewards.append(float(step_result.reward or 0.0))
             except Exception as exc:  # noqa: BLE001
