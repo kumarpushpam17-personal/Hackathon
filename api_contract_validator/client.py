@@ -44,10 +44,19 @@ class ValidatorEnv(
     def _step_payload(self, action: ValidatorAction) -> Dict[str, Any]:
         """Convert action to JSON payload for the step message."""
         return {
+            "action_type": action.action_type,
+            # Phase 1
             "field_path": action.field_path,
             "violation_type": action.violation_type,
             "description": action.description,
             "suggested_fix": action.suggested_fix,
+            # Phase 2
+            "affected_services": list(action.affected_services),
+            "reasoning": action.reasoning,
+            # Phase 3
+            "fix_strategy": action.fix_strategy,
+            "spec_patch": dict(action.spec_patch),
+            "rationale": action.rationale,
         }
 
     def _parse_result(
@@ -60,10 +69,17 @@ class ValidatorEnv(
             reward=payload.get("reward"),
             task_name=obs_data.get("task_name", ""),
             task_description=obs_data.get("task_description", ""),
+            phase=obs_data.get("phase", "detection"),
             api_spec=obs_data.get("api_spec", {}),
             payload=obs_data.get("payload", {}),
             violations_found=obs_data.get("violations_found", []),
             violations_remaining=obs_data.get("violations_remaining", 0),
+            service_graph=obs_data.get("service_graph", {}),
+            consumers_traced=obs_data.get("consumers_traced", []),
+            total_consumers=obs_data.get("total_consumers", 0),
+            detected_violation=obs_data.get("detected_violation", {}),
+            consumer_specs=obs_data.get("consumer_specs", {}),
+            fix_validation_results=obs_data.get("fix_validation_results", {}),
             feedback=obs_data.get("feedback", ""),
             max_steps=obs_data.get("max_steps", 0),
         )
@@ -79,9 +95,17 @@ class ValidatorEnv(
             episode_id=payload.get("episode_id"),
             step_count=payload.get("step_count", 0),
             task_name=payload.get("task_name", ""),
+            phase=payload.get("phase", "detection"),
             total_violations=payload.get("total_violations", 0),
             correct_reports=payload.get("correct_reports", 0),
             false_positives=payload.get("false_positives", 0),
             duplicate_reports=payload.get("duplicate_reports", 0),
+            total_consumers=payload.get("total_consumers", 0),
+            consumers_correctly_traced=payload.get("consumers_correctly_traced", 0),
+            consumers_missed=payload.get("consumers_missed", 0),
+            consumers_false_flagged=payload.get("consumers_false_flagged", 0),
+            fix_attempts=payload.get("fix_attempts", 0),
+            fix_validated=payload.get("fix_validated", False),
+            fix_breaks_consumers=payload.get("fix_breaks_consumers", 0),
             score=payload.get("score", 0.0),
         )

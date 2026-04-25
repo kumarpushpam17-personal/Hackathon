@@ -214,3 +214,153 @@ def test_auth_task_variants_differ():
 def test_easy_pool_has_twelve_variants():
     from server.spec_generator import _EASY_POOL
     assert len(_EASY_POOL) == 12, f"Expected 12 pool entries, got {len(_EASY_POOL)}"
+
+
+# ── Phase 2 — impact tracing ───────────────────────────────────────────────
+
+
+def test_phase2_reset_returns_service_graph(env):
+    obs = env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    assert obs.phase == "tracing"
+    assert obs.total_consumers >= 3
+    assert "consumers" in obs.service_graph
+    assert obs.feedback
+
+
+def test_phase2_perfect_trace_scores_high(env):
+    env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    action = ValidatorAction(
+        action_type="trace_impact",
+        affected_services=[
+            "OrdersService",
+            "BillingService",
+            "NotificationsService",
+        ],
+    )
+    result = env.step(action)
+    assert result.done is True
+    assert result.reward > 2.0  # 3 hits @ +0.8 each
+    assert env.state.score > 0.9
+
+
+def test_phase2_false_flag_penalty(env):
+    env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    action = ValidatorAction(
+        action_type="trace_impact",
+        affected_services=["OrdersService", "AnalyticsETL"],  # one false flag
+    )
+    result = env.step(action)
+    assert result.done is True
+    # 1 hit (+0.8) + 2 missed (-0.5 each) + 1 false (-0.4) = -0.6
+    assert result.reward < 0
+
+
+def test_phase2_unknown_service_treated_as_false_flag(env):
+    env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    action = ValidatorAction(
+        action_type="trace_impact",
+        affected_services=["NonexistentService"],
+    )
+    result = env.step(action)
+    assert result.done is True
+    assert result.reward < 0
+
+
+# ── Phase 3 — fix proposal ─────────────────────────────────────────────────
+
+
+def test_phase3_reset_returns_violation_and_consumers(env):
+    obs = env.reset(task_name="propose_backward_compat_fix", seed=1)
+    assert obs.phase == "fix_proposal"
+    assert obs.detected_violation
+    assert obs.consumer_specs
+
+
+def test_phase3_good_field_alias_passes_all_consumers(env):
+    env.reset(task_name="propose_backward_compat_fix", seed=1)
+    action = ValidatorAction(
+        action_type="propose_fix",
+        fix_strategy="field_alias",
+        spec_patch={"aliases": {"email": "email_address"}},
+        rationale="Keep old field name as alias",
+    )
+    result = env.step(action)
+    assert result.done is True
+    assert result.reward >= 2.0
+    assert env.state.fix_validated is True
+
+
+def test_phase3_malformed_strategy_penalty(env):
+    env.reset(task_name="propose_backward_compat_fix", seed=1)
+    action = ValidatorAction(
+        action_type="propose_fix",
+        fix_strategy="not_a_real_strategy",
+        spec_patch={},
+    )
+    result = env.step(action)
+    assert result.reward < 0
+    assert env.state.fix_validated is False
+
+
+def test_phase3_breaking_consumer_penalised(env):
+    env.reset(task_name="propose_backward_compat_fix", seed=1)
+    # dual_write but missing the new field — breaks all consumers
+    action = ValidatorAction(
+        action_type="propose_fix",
+        fix_strategy="dual_write",
+        spec_patch={"emit_fields": ["email"]},
+    )
+    result = env.step(action)
+    assert result.reward < 0
+    assert env.state.fix_validated is False
+
+
+# ── Cascade — full workflow ───────────────────────────────────────────────
+
+
+def test_cascade_starts_in_tracing_phase(env):
+    obs = env.reset(task_name="multi_service_cascade_fix", seed=1)
+    assert obs.phase == "tracing"
+
+
+def test_cascade_transitions_to_fix_after_correct_trace(env):
+    env.reset(task_name="multi_service_cascade_fix", seed=1)
+    trace = ValidatorAction(
+        action_type="trace_impact",
+        affected_services=[
+            "OrdersService",
+            "BillingService",
+            "NotificationsService",
+        ],
+    )
+    obs = env.step(trace)
+    assert obs.done is False
+    assert obs.phase == "fix_proposal"
+
+    fix = ValidatorAction(
+        action_type="propose_fix",
+        fix_strategy="field_alias",
+        spec_patch={"aliases": {"email": "email_address"}},
+    )
+    obs = env.step(fix)
+    assert obs.done is True
+    assert env.state.fix_validated is True
+
+
+# ── Determinism ────────────────────────────────────────────────────────────
+
+
+def test_phase2_seed_determinism(env):
+    obs1 = env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    obs2 = env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    services1 = sorted(c["name"] for c in obs1.service_graph["consumers"])
+    services2 = sorted(c["name"] for c in obs2.service_graph["consumers"])
+    assert services1 == services2
+
+
+def test_different_seeds_pick_different_scenarios(env):
+    obs_even = env.reset(task_name="trace_downstream_blast_radius", seed=0)
+    obs_odd = env.reset(task_name="trace_downstream_blast_radius", seed=1)
+    name_even = obs_even.service_graph["producer"]
+    name_odd = obs_odd.service_graph["producer"]
+    assert name_even != name_odd

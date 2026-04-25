@@ -290,34 +290,6 @@ openenv validate
 
 *Phase 2/3 baselines are near-zero by design — the goal of training is to show the reward curve going up from there.*
 
-## Project Structure
-
-```
-api_contract_validator/
-├── openenv.yaml              # OpenEnv manifest
-├── pyproject.toml            # Python project metadata
-├── Dockerfile                # Container definition
-├── inference.py              # Baseline inference script (OpenAI client)
-├── README.md                 # This file
-├── models.py                 # Pydantic models (Action, Observation, State)
-├── client.py                 # WebSocket client (EnvClient subclass)
-├── __init__.py               # Package exports
-├── tests/
-│   └── test_environment.py   # Verifies tasks, rewards, seed reproducibility
-└── server/
-    ├── __init__.py
-    ├── app.py                # FastAPI wiring (create_app)
-    ├── environment.py        # Core environment (reset/step/state) — orchestrates phases
-    ├── spec_generator.py     # Phase 1 task scenarios with planted violations
-    ├── service_graph.py      # [Finale] Simulated enterprise graph (producers + consumers)   ← NEW
-    ├── impact_tracer.py      # [Finale] Ground-truth consumer-impact computation               ← NEW
-    ├── fix_validator.py      # [Finale] Cross-spec fix verification                             ← NEW
-    ├── rewards.py            # Reward computation (multi-phase + independent signals)
-    └── requirements.txt      # Server dependencies
-```
-
-> `service_graph.py`, `impact_tracer.py`, `fix_validator.py` are the finale additions — to be built per `FINALE_CHECKLIST.md §1`.
-
 ## Why This Matters
 
 API contract violations are the **#1 cause of production incidents in microservice architectures**. Every platform team deals with this weekly. No existing RL environment teaches agents to reason about multi-service contract impact.
@@ -346,25 +318,23 @@ api_contract_validator/
 ├── openenv.yaml              # OpenEnv manifest
 ├── pyproject.toml            # Python project metadata
 ├── Dockerfile                # Container definition
-├── inference.py              # Baseline inference script (OpenAI client)
+├── inference.py              # Baseline inference script (OpenAI client, phase-aware)
 ├── README.md                 # This file
-├── models.py                 # Pydantic models (Action, Observation, State)
+├── models.py                 # Pydantic models (Action, Observation, State — all 3 phases)
 ├── client.py                 # WebSocket client (EnvClient subclass)
 ├── __init__.py               # Package exports
-├── results/                  # Training plots (committed, embedded above)
-│   ├── reward_curve.png      # Episode reward over training steps
-│   └── before_after.png      # Per-task baseline vs trained comparison
+├── results/                  # Training plots (.png) — committed, embedded above
 ├── tests/
-│   └── test_environment.py   # Verifies tasks, rewards, seed reproducibility
+│   └── test_environment.py   # 28 tests across all 3 phases
 └── server/
     ├── app.py                # FastAPI wiring (create_app)
-    ├── environment.py        # Core environment (reset/step/state, phase orchestration)
-    ├── spec_generator.py     # Phase 1 task scenarios with planted violations
+    ├── environment.py        # Core environment — multi-phase orchestration
+    ├── logging_setup.py      # Structured JSON episode logging
+    ├── spec_generator.py     # Phase 1 — task scenarios with planted violations
     ├── service_graph.py      # Phase 2 — simulated enterprise service graph
     ├── impact_tracer.py      # Phase 2 — ground-truth consumer-impact computation
     ├── fix_validator.py      # Phase 3 — cross-spec fix verification
-    ├── rewards.py            # Composable reward rubrics (multi-phase, independent signals)
-    └── requirements.txt      # Server dependencies
+    └── rewards.py            # Composable reward rubrics (multi-phase, independent signals)
 ```
 
 ## License
