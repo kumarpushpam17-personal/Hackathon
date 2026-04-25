@@ -116,41 +116,67 @@ def _list_value(values: Any, index: int, default: Any) -> Any:
     return default
 
 
-def make_reward_fn(env_client, task_pool: List[str]):
+def make_reward_fn(env_url: str, task_pool: List[str]):
     """Return a TRL-compatible reward_fn that grades each completion via env.
 
-    For every (prompt, completion) pair, we ask the env to score it.
-    GRPO will then promote the higher-reward completion among the
-    ``num_generations`` samples per prompt.
+    A fresh ``ValidatorEnv`` (WebSocket) is created per ``reward_fn``
+    invocation and closed at the end. HF Spaces drops idle WebSockets
+    after ~30 s, but GRPO's model-generation and backprop pauses are
+    longer than that — sharing one WebSocket across batches caused
+    "received 1011 keepalive ping timeout" on every batch after the
+    first. A per-call client adds ~50 ms of TCP setup but eliminates
+    the keepalive failures entirely.
+
+    Within a single ``reward_fn`` call, all completions are graded
+    through one client (calls are rapid so keepalive is not at risk).
     """
     from inference import _build_action, parse_llm_response  # noqa: WPS433
     import asyncio
+
+    from client import ValidatorEnv  # noqa: WPS433
 
     def reward_fn(prompts, completions, **kwargs):  # noqa: ARG001
         rewards: List[float] = []
         try:
             loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("loop closed")
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+
         task_names = kwargs.get("task") or []
         seeds = kwargs.get("seed") or []
 
-        for idx, completion in enumerate(completions):
-            text = completion if isinstance(completion, str) else completion[0]["content"]
-            task_name = _list_value(task_names, idx, task_pool[0])
-            seed = _list_value(seeds, idx, 0)
-            try:
-                loop.run_until_complete(
-                    env_client.reset(task_name=task_name, seed=int(seed))
+        env_client = ValidatorEnv(base_url=env_url)
+        try:
+            for idx, completion in enumerate(completions):
+                text = (
+                    completion
+                    if isinstance(completion, str)
+                    else completion[0]["content"]
                 )
-                action_data = parse_llm_response(text)
-                action = _build_action(action_data)
-                step_result = loop.run_until_complete(env_client.step(action))
-                rewards.append(float(step_result.reward or 0.0))
-            except Exception as exc:  # noqa: BLE001
-                print(f"[WARN] reward_fn error: {exc}")
-                rewards.append(-0.5)
+                task_name = _list_value(task_names, idx, task_pool[0])
+                seed = _list_value(seeds, idx, 0)
+                try:
+                    loop.run_until_complete(
+                        env_client.reset(task_name=task_name, seed=int(seed))
+                    )
+                    action_data = parse_llm_response(text)
+                    action = _build_action(action_data)
+                    step_result = loop.run_until_complete(
+                        env_client.step(action)
+                    )
+                    rewards.append(float(step_result.reward or 0.0))
+                except Exception as exc:  # noqa: BLE001
+                    print(f"[WARN] reward_fn error: {exc}")
+                    rewards.append(-0.5)
+        finally:
+            try:
+                loop.run_until_complete(env_client.close())
+            except Exception:  # noqa: BLE001
+                pass
+
         return rewards
 
     return reward_fn
@@ -289,7 +315,7 @@ def main() -> None:
         fp16=not use_bf16,
     )
 
-    reward_fn = make_reward_fn(env, train_tasks)
+    reward_fn = make_reward_fn(cfg.env_url, train_tasks)
 
     trainer = GRPOTrainer(
         model=model,
