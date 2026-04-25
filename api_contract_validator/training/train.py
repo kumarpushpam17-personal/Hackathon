@@ -271,16 +271,21 @@ def main() -> None:
     print(f"[INFO] building dataset for tasks={train_tasks}")
     train_dataset = build_train_dataset(env, train_tasks)
 
-    # 4. Detect GPU capability for mixed precision.
-    #    bf16 only works on Ampere+ GPUs (A10G, A100, L4, H100, H200).
-    #    T4 (CUDA 7.5) only supports fp16.
+    # 4. Mixed precision setup.
+    #
+    #    We force fp16 on every GPU rather than auto-selecting bf16 on
+    #    Ampere+. Reason: unsloth's fast_lora kernel with bf16 autocast
+    #    crashes inside its gradient-checkpointed LoRA forward pass with
+    #    "self and mat2 must have the same dtype, but got Half and Float".
+    #    fp16 avoids the autocast path that triggers the bug entirely
+    #    and works on T4 (smoke test confirmed) and L4 alike.
+    #
+    #    Tradeoff: slightly less numerical range than bf16. Acceptable
+    #    for LoRA training; bf16's main advantage is full-precision FT.
     import torch  # type: ignore
-    use_bf16 = (
-        torch.cuda.is_available()
-        and torch.cuda.get_device_capability()[0] >= 8
-    )
-    torch_dtype = torch.bfloat16 if use_bf16 else torch.float16
-    print(f"[INFO] mixed precision: {'bf16' if use_bf16 else 'fp16'}")
+    use_bf16 = False
+    torch_dtype = torch.float16
+    print(f"[INFO] mixed precision: fp16 (bf16 disabled due to unsloth LoRA issue)")
 
     # 5. Load model + LoRA. Pass `dtype` explicitly so the model weights
     #    match the dtype the GRPO trainer will use. Without this Unsloth
