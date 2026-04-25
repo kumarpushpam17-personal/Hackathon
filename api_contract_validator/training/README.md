@@ -11,23 +11,99 @@ Re-runnable training pipeline for the API Contract Validator environment, using 
 | `plot.py` | Build `reward_curve.png` and `before_after.png` for the README |
 | `grpo_colab.ipynb` | One-click Colab notebook (open in Colab → Runtime → Run all) |
 
-## Three ways to run training
+## Recommended path — HF Jobs (best for the finale)
 
-### A. Colab notebook (easiest, free GPU)
+HF Jobs runs in the cloud, doesn't disconnect, and bills against your $30 hackathon credit. Three runs total cost ~$3 of $60 if you have credits across two accounts.
 
-Open `grpo_colab.ipynb` in Colab. Set `HF_TOKEN` and `WANDB_API_KEY` in the secrets pane. Hit **Runtime → Run all**.
+### Run 1 — Smoke test (~$0.30, 5 min)
 
-### B. HF Jobs (best for the onsite — uses your $30 credit)
+Verifies the pipeline works end-to-end before committing to a long run.
 
 ```bash
 hf jobs uv run \
-    --with trl --with unsloth --with openenv-core --with wandb \
+    --with "trl" --with "unsloth" --with "openenv-core[core]>=0.2.2" \
+    --with "wandb" --with "matplotlib" --with "datasets" --with "openai" \
     --flavor t4-small \
     -s HF_TOKEN -s WANDB_API_KEY \
+    -e BASE_MODEL=unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit \
+    -e ENV_URL=https://pushpam14-api-contract-validator.hf.space \
+    -e MAX_STEPS=10 \
+    -e WANDB_RUN=smoke-test \
     -- python training/train.py
 ```
 
-### C. Local GPU
+If this errors, **don't proceed**. Fix the error, re-run smoke test until it returns clean.
+
+### Run 2 — Main training, **Qwen2.5-7B on L4** (~$2.40, ~2 hours)
+
+Best balance of model size, speed, and cost for our $60 budget. L4 has 24 GB which fits Qwen2.5-7B with 4-bit quantisation + LoRA r=16.
+
+```bash
+hf jobs uv run \
+    --with "trl" --with "unsloth" --with "openenv-core[core]>=0.2.2" \
+    --with "wandb" --with "matplotlib" --with "datasets" --with "openai" \
+    --flavor l4x1 \
+    -s HF_TOKEN -s WANDB_API_KEY \
+    -e BASE_MODEL=unsloth/Qwen2.5-7B-Instruct-bnb-4bit \
+    -e ENV_URL=https://pushpam14-api-contract-validator.hf.space \
+    -e MAX_STEPS=300 \
+    -e NUM_GENERATIONS=4 \
+    -e LORA_R=16 \
+    -e LORA_ALPHA=32 \
+    -e WANDB_PROJECT=openenv-contract-guardian \
+    -e WANDB_RUN=grpo-7b-l4-300steps \
+    -e PUSH_TO_HUB=pushpam14/api-contract-validator-grpo-7b \
+    -- python training/train.py
+```
+
+### Run 3 — Insurance run on second account (~$0.40, ~45 min)
+
+Use your second HF account in parallel as a safety net. Smaller model = faster, more dramatic improvement curve. If Run 2 produces a beautiful curve we ship that; if Run 2 has issues we ship this one.
+
+```bash
+# Use your SECOND HF account's token here
+hf jobs uv run \
+    --with "trl" --with "unsloth" --with "openenv-core[core]>=0.2.2" \
+    --with "wandb" --with "matplotlib" --with "datasets" --with "openai" \
+    --flavor t4-small \
+    -s HF_TOKEN -s WANDB_API_KEY \
+    -e BASE_MODEL=unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit \
+    -e ENV_URL=https://pushpam14-api-contract-validator.hf.space \
+    -e MAX_STEPS=200 \
+    -e WANDB_RUN=grpo-1.5b-t4-200steps \
+    -e PUSH_TO_HUB=YOUR_SECOND_ACCOUNT/api-contract-validator-grpo-1.5b \
+    -- python training/train.py
+```
+
+### Hardware ↔ model size cheatsheet
+
+| Flavor | VRAM | $/hr | Fits (4-bit + LoRA) |
+|---|---|---|---|
+| `t4-small` | 16 GB | $0.40 | Up to 3B |
+| `l4x1` | 24 GB | $0.80 | Up to 8B comfortably |
+| `a10g-large` | 24 GB | $1.50 | Up to 8B, faster than L4 |
+| `a100-large` | 80 GB | $3.50 | 14B fp16 or 70B 4-bit |
+| `h100x1` | 80 GB | $4.50 | Same as A100 but ~2× faster |
+
+For our env, **`l4x1` + Qwen2.5-7B is the sweet spot.**
+
+### Monitoring the run
+
+```bash
+# Watch the job logs in real time
+hf jobs logs <job-id> --follow
+
+# List recent jobs
+hf jobs list
+
+# WandB run will be auto-linked in the job logs — bookmark that URL for the README
+```
+
+## Alternative: Colab notebook (if HF Jobs is unavailable)
+
+Open `grpo_colab.ipynb` in Colab. Set `HF_TOKEN` and `WANDB_API_KEY` in the secrets pane. Hit **Runtime → Run all**. Free T4, but disconnects after 3 hours and only fits the 1.5B model.
+
+## Alternative: Local GPU
 
 ```bash
 pip install trl unsloth wandb matplotlib datasets
@@ -59,9 +135,9 @@ python training/plot.py
 |---|---|---|
 | `HF_TOKEN` | — | Required. Used for both inference (router) and Hub push |
 | `WANDB_API_KEY` | — | Optional. If set, training logs go to WandB |
-| `BASE_MODEL` | `unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit` | Small enough for T4 |
+| `BASE_MODEL` | `unsloth/Qwen2.5-7B-Instruct-bnb-4bit` | 7B fits on L4 (24 GB) with 4-bit |
 | `ENV_URL` | `http://localhost:7860` | Local server or deployed HF Space |
-| `MAX_STEPS` | `200` | GRPO steps. ~45 min on T4 |
+| `MAX_STEPS` | `300` | GRPO steps. ~2 hours on L4 |
 | `NUM_GENERATIONS` | `4` | Completions per prompt for relative ranking |
 | `LORA_R` | `16` | LoRA rank |
 | `PUSH_TO_HUB` | — | `<username>/<repo>` — push trained adapter |

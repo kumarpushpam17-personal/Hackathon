@@ -58,8 +58,25 @@ except ImportError:
 
 @dataclass
 class TrainConfig:
+    """Training configuration. All fields read from env vars at instantiation.
+
+    Recommended HF Jobs configurations:
+
+      Smoke test ($0.30, 5 min):
+        BASE_MODEL=unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit, MAX_STEPS=10,
+        flavor t4-small
+
+      Main run on L4 ($2.40, ~2 hr):
+        BASE_MODEL=unsloth/Qwen2.5-7B-Instruct-bnb-4bit, MAX_STEPS=300,
+        flavor l4x1
+
+      Insurance run on T4 ($0.40, ~45 min):
+        BASE_MODEL=unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit, MAX_STEPS=200,
+        flavor t4-small
+    """
+
     base_model: str = os.getenv(
-        "BASE_MODEL", "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"
+        "BASE_MODEL", "unsloth/Qwen2.5-7B-Instruct-bnb-4bit"
     )
     env_url: str = os.getenv("ENV_URL", "http://localhost:7860")
     push_to_hub_id: str | None = os.getenv("PUSH_TO_HUB", None)
@@ -76,7 +93,7 @@ class TrainConfig:
     # GRPO
     max_seq_length: int = int(os.getenv("MAX_SEQ_LEN", "2048"))
     num_generations: int = int(os.getenv("NUM_GENERATIONS", "4"))
-    max_steps: int = int(os.getenv("MAX_STEPS", "200"))
+    max_steps: int = int(os.getenv("MAX_STEPS", "300"))
     learning_rate: float = float(os.getenv("LR", "5e-6"))
     per_device_batch_size: int = int(os.getenv("BATCH_SIZE", "1"))
     grad_accum: int = int(os.getenv("GRAD_ACCUM", "4"))
