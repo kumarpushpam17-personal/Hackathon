@@ -264,6 +264,15 @@ def main() -> None:
     )
 
     # 5. GRPO trainer
+    # bf16 only works on Ampere+ GPUs (A10G, A100, L4, H100, H200).
+    # T4 (CUDA 7.5) only supports fp16. Detect at runtime.
+    import torch  # type: ignore
+    use_bf16 = (
+        torch.cuda.is_available()
+        and torch.cuda.get_device_capability()[0] >= 8
+    )
+    print(f"[INFO] mixed precision: {'bf16' if use_bf16 else 'fp16'}")
+
     grpo_cfg = GRPOConfig(
         output_dir=cfg.output_dir,
         learning_rate=cfg.learning_rate,
@@ -276,7 +285,8 @@ def main() -> None:
         logging_steps=1,
         save_steps=50,
         report_to="wandb" if os.getenv("WANDB_API_KEY") else "none",
-        bf16=True,
+        bf16=use_bf16,
+        fp16=not use_bf16,
     )
 
     reward_fn = make_reward_fn(env, train_tasks)
