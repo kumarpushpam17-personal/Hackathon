@@ -20,7 +20,19 @@ import asyncio
 import json
 import os
 import textwrap
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# Load .env file (if present) before reading any os.getenv values.
+# .env is gitignored — keeps HF_TOKEN out of source control.
+try:
+    from dotenv import load_dotenv
+
+    _ENV_FILE = Path(__file__).resolve().parent / ".env"
+    if _ENV_FILE.exists():
+        load_dotenv(_ENV_FILE)
+except ImportError:
+    pass  # python-dotenv not installed — fall back to OS env vars only
 
 from openai import OpenAI
 

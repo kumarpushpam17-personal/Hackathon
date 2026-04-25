@@ -32,6 +32,9 @@ ENV/
 .env
 .env.*
 *.env
+# but DO commit the template
+!.env.example
+!**/.env.example
 
 # OS
 .DS_Store

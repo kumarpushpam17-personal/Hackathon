@@ -29,6 +29,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+# Load .env from api_contract_validator/ before reading os.getenv values
+try:
+    from dotenv import load_dotenv
+    _ENV_FILE = ROOT / ".env"
+    if _ENV_FILE.exists():
+        load_dotenv(_ENV_FILE)
+except ImportError:
+    pass
+
 from openai import OpenAI  # noqa: E402
 
 from client import ValidatorEnv  # noqa: E402
