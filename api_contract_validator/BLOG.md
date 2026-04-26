@@ -46,6 +46,20 @@ GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/ap
 
 The end result is a training environment where an LLM agent interacts with a simulated enterprise API ecosystem and learns to reason about contract changes, downstream consumers, and backward-compatible fixes.
 
+## What makes this submission strong
+
+This is not a static prompt benchmark. It is a runnable OpenEnv environment with hidden ground truth, stateful episodes, objective rewards, real training, and public proof artifacts.
+
+| Area | What is included |
+|---|---|
+| Environment depth | 9 tasks across detection, downstream impact tracing, and backward-compatible fix verification |
+| Episode/data mix | Seeded synthetic enterprise API scenarios: OpenAPI specs, payloads, version diffs, consumer service graphs, and migration candidates |
+| Reward richness | 14 independent reward signals covering correct findings, proximity, duplicates, false positives, missed consumers, malformed patches, broken consumers, and anti-spam |
+| Training evidence | 300 GRPO steps on Qwen2.5-7B + LoRA, public WandB run, reward curve, training state JSON, full logs, and trained adapter on Hugging Face |
+| Before/after evaluation | Three-way comparison: untrained Qwen2.5-72B, untrained Qwen2.5-7B, and trained Qwen2.5-7B + LoRA |
+
+The environment uses generated, deterministic scenarios rather than a scraped external dataset. That is intentional: every episode has known ground truth, which makes the reward signal auditable and lets judges reproduce the same task with a fixed `seed`.
+
 ## The story in 30 seconds
 
 It is Friday evening. A backend engineer makes what looks like a small API cleanup:

@@ -38,6 +38,21 @@ Per `themes.md` Theme #3.1: *"environments that require real interaction with to
 - ✅ **Enterprise workflow nuance**: versioning, deprecation, backward compatibility
 - ✅ **Verifiable reward**: every step has a deterministic, objective grader
 
+## What Makes This Submission Strong
+
+This is not a static prompt benchmark. It is a runnable OpenEnv environment with hidden ground truth, stateful episodes, objective rewards, real training, and public proof artifacts.
+
+| Area | What is included |
+|---|---|
+| **Environment depth** | 9 tasks across detection, downstream impact tracing, and backward-compatible fix verification |
+| **Episode/data mix** | Seeded synthetic enterprise API scenarios: OpenAPI specs, payloads, version diffs, consumer service graphs, and migration candidates |
+| **Reward richness** | 14 independent reward signals covering correct findings, proximity, duplicates, false positives, missed consumers, malformed patches, broken consumers, and anti-spam |
+| **Training evidence** | 300 GRPO steps on Qwen2.5-7B + LoRA, public WandB run, reward curve, training state JSON, full logs, and trained adapter on Hugging Face |
+| **Before/after evaluation** | Three-way comparison: untrained Qwen2.5-72B, untrained Qwen2.5-7B, and trained Qwen2.5-7B + LoRA |
+| **Headline improvement** | `detect_breaking_changes`: 0.01 → 0.67 for the same 7B base model after GRPO |
+
+The environment uses generated, deterministic scenarios rather than a scraped external dataset. That is intentional: every episode has known ground truth, which makes the reward signal auditable and lets judges reproduce the same task with a fixed `seed`.
+
 ## Architecture: Phase 1 → Phase 2 → Phase 3
 
 | Phase | What the agent does | Task examples |
