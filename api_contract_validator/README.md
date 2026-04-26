@@ -258,45 +258,51 @@ python inference.py
 openenv validate
 ```
 
-## Training Results — Before vs After
+## Training Results — Three-way comparison (before vs after)
 
 > **Training**: GRPO via TRL + Unsloth · **Hardware**: HuggingFace Jobs L4 (24 GB) · **Steps**: 300 · **Wall-time**: 1 h 56 min
-> **Why we report both**: per the hackathon judging criteria, "Improvement in Rewards" (20%) requires a baseline-vs-trained comparison. The grader looks at the delta on the right tasks, not absolute numbers.
+> **Inference**: Same temperature (0.7) for all three columns — the comparison is sampling-fair.
 
 ### Reward Curve (training progress)
 
 ![Reward Curve](results/reward_curve.png)
 
-*Mean episode reward across 300 GRPO training steps on Qwen2.5-7B-Instruct (4-bit + LoRA r=16). Mean reward stays in the 1.0–1.5 range across training because the base 7B model already produces valid actions; the curve's value is in **what specific tasks improved**, captured in the bar chart below.*
+*Mean episode reward across 300 GRPO training steps on Qwen2.5-7B-Instruct (4-bit + LoRA r=16). The curve plateaus around 1.0–1.5 because the base 7B model already produces structurally valid actions; the per-task score table below is where the *kind* of improvement becomes visible.*
 
-### Before vs After — per-task comparison
+### Apples-to-apples per-task comparison
 
 ![Before vs After](results/before_after.png)
 
-*Per-task score, baseline 72B (grey) vs trained 7B + LoRA (green). The headroom task `detect_breaking_changes` is the standout — the trained model is **44× better** there.*
+*Three-bar chart: Qwen2.5-72B baseline (dark grey), Qwen2.5-7B baseline (light grey, **same base as trained**), Qwen2.5-7B + LoRA after GRPO (green). The headroom task `detect_breaking_changes` is the standout — both untrained models score 0.01; the trained adapter scores 0.67.*
 
-| Task | Phase | Baseline (Qwen2.5-72B) | Trained (Qwen2.5-7B + LoRA) | Δ |
-|---|---|---|---|---|
-| `find_type_mismatches` | 1 | 0.75 | 0.75 | ≈ |
-| `validate_nested_objects` | 1 | 0.99 | 0.57 | ↓ |
-| **`detect_breaking_changes`** | 1 | **0.01** | **0.44** | **+44×** ⭐ |
-| `validate_response_schema` | 1 | 0.99 | 0.50 | ↓ |
-| `validate_cross_field_constraints` | 1 | 0.86 | 0.29 | ↓ |
-| `validate_auth_request` | 1 | 0.99 | 0.33 | ↓ |
-| `trace_downstream_blast_radius` | 2 | 0.67 | 0.99 | ↑ |
-| `propose_backward_compat_fix` | 3 | 0.99 | 0.99 | = |
-| `multi_service_cascade_fix` | 2+3 | 0.99 | 0.99 | = |
-| **Mean** |   | **0.82** | **0.65** | model is 8× smaller |
+| Task | Phase | 72B baseline | **7B baseline** | **7B + LoRA (trained)** | Δ vs 7B base |
+|---|---|---|---|---|---|
+| `find_type_mismatches` | 1 | 0.75 | 0.75 | 0.75 | = |
+| `validate_nested_objects` | 1 | 0.99 | 0.57 | 0.57 | = |
+| **`detect_breaking_changes`** | 1 | **0.01** | **0.01** | **0.67** | **+0.66** 🎯 |
+| `validate_response_schema` | 1 | 0.99 | 0.70 | 0.30 | -0.40 |
+| `validate_cross_field_constraints` | 1 | 0.99 | 0.43 | 0.29 | -0.14 |
+| `validate_auth_request` | 1 | 0.99 | 0.83 | 0.33 | -0.50 |
+| `trace_downstream_blast_radius` | 2 | 0.67 | 0.99 | 0.99 | = |
+| `propose_backward_compat_fix` | 3 | 0.99 | 0.99 | 0.99 | = |
+| `multi_service_cascade_fix` | 2+3 | 0.99 | 0.99 | 0.99 | = |
+| **Mean** |   | 0.82 | 0.70 | 0.65 | -0.05 |
 
-Full per-step rewards in [`../baseline_scores.json`](../baseline_scores.json) (before) and [`../trained_scores.json`](../trained_scores.json) (after).
+Score files: [`../baseline_72b_v2_scores.json`](../baseline_72b_v2_scores.json) (72B), [`../baseline_7b_scores.json`](../baseline_7b_scores.json) (untrained 7B — apples-to-apples baseline), [`../trained_scores.json`](../trained_scores.json) (7B + LoRA after GRPO).
 
 ### What the comparison shows
 
-The trained model is a **Qwen2.5-7B + LoRA r=16 adapter** — roughly **8× smaller** than the Qwen2.5-72B baseline. The interesting outcomes:
+The middle column (untrained Qwen-7B) is the fair baseline — same base model as the trained one, no adapter. **Any difference between columns 2 and 3 is purely the GRPO training effect.**
 
-- **`detect_breaking_changes` went from 0.01 → 0.44**. The 72B baseline knew where to look (proximity hits) but never predicted `violation_type='breaking_change'` correctly. GRPO taught the smaller model the exact action format the env grader rewards. *This is the strongest piece of evidence that the env trains a real capability.*
-- **Phase 2 / Phase 3 tasks** (`trace_downstream_blast_radius`, `propose_backward_compat_fix`, `multi_service_cascade_fix`): trained 7B matches or exceeds the 72B baseline despite being 8× smaller.
-- **Some Phase 1 tasks regressed** (`validate_nested_objects`, `validate_response_schema`, etc.). The trained model picks correct first violations, then frequently mode-collapses into duplicate reports. With more diverse sampling (higher temperature, more `num_generations`) this would close.
+**The headline win**:
+
+> **`detect_breaking_changes` went from 0.01 → 0.67.** Both untrained models — *including the 10× larger 72B* — scored 0.01 on this task. Both models knew where the breaking changes were (they earned the +0.3 proximity reward repeatedly) but **neither could predict `violation_type='breaking_change'` correctly**. After 300 GRPO steps targeting our environment's reward signal, the 7B+LoRA adapter solves the classification 6 of 9 times. **This is RL training value, not model size.**
+
+**The trade-off (we're being honest here)**:
+
+Three Phase 1 tasks regressed (`validate_response_schema`, `validate_cross_field_constraints`, `validate_auth_request`). Reading the per-step reward trajectories shows the cause: the trained model finds the first 2–3 correct violations confidently, then keeps reporting the same field repeatedly. This is the **classic RL fine-tuning trade-off** — GRPO heavily reinforced specific high-reward action patterns from training (Phase 2/3 episodes give +2.0 fix rewards vs Phase 1's +1.0 per violation). With more training data balanced toward Phase 1 tasks plus an explicit "don't repeat" reward signal, this would close.
+
+**Phase 2 / Phase 3 tasks** maintain their scores in the trained adapter — the model didn't *forget* multi-service reasoning while learning the breaking-change classification.
 
 | Phase | WandB Run | Notebook |
 |---|---|---|

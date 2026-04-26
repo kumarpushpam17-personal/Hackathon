@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = ROOT.parent
 RESULTS = ROOT / "results"
 BASELINE = REPO_ROOT / "baseline_scores.json"
+BASELINE_7B = REPO_ROOT / "baseline_7b_scores.json"
 TRAINED = REPO_ROOT / "trained_scores.json"
 TRAIN_STATE = RESULTS / "training_state.json"
 
@@ -71,26 +72,41 @@ def plot_reward_curve() -> None:
 
 
 def plot_before_after() -> None:
-    baseline = _load_scores(BASELINE)
+    """Three-bar comparison: 72B baseline, 7B baseline, 7B + LoRA trained."""
+    baseline72 = _load_scores(BASELINE)
+    baseline7 = _load_scores(BASELINE_7B) if BASELINE_7B.exists() else None
     trained = _load_scores(TRAINED)
 
-    tasks = sorted(set(baseline) | set(trained))
-    base_vals = [baseline.get(t, 0.0) for t in tasks]
-    train_vals = [trained.get(t, 0.0) for t in tasks]
+    tasks = list(trained.keys())  # preserve task order from trained_scores.json
+    b72 = [baseline72.get(t, 0.0) for t in tasks]
+    b7 = [baseline7.get(t, 0.0) for t in tasks] if baseline7 else None
+    tr = [trained.get(t, 0.0) for t in tasks]
 
     x = np.arange(len(tasks))
-    width = 0.4
+    n_bars = 3 if baseline7 else 2
+    width = 0.8 / n_bars
 
-    plt.figure(figsize=(11, 5.5))
-    plt.bar(x - width / 2, base_vals, width, label="Baseline (untrained)",
-            color="#9ca3af")
-    plt.bar(x + width / 2, train_vals, width, label="GRPO-trained",
-            color="#16a34a")
+    plt.figure(figsize=(12, 6))
+    if baseline7:
+        plt.bar(x - width, b72, width, label="Qwen2.5-72B (untrained)",
+                color="#6b7280")
+        plt.bar(x,        b7,  width, label="Qwen2.5-7B  (untrained, same base)",
+                color="#9ca3af")
+        plt.bar(x + width, tr, width, label="Qwen2.5-7B + LoRA (GRPO-trained)",
+                color="#16a34a")
+    else:
+        plt.bar(x - width / 2, b72, width, label="Baseline (Qwen2.5-72B)",
+                color="#9ca3af")
+        plt.bar(x + width / 2, tr, width, label="Trained 7B + LoRA",
+                color="#16a34a")
     plt.xticks(x, tasks, rotation=30, ha="right", fontsize=9)
     plt.ylabel("Episode score (0–1)")
     plt.ylim(0, 1.0)
-    plt.title("Per-task score: baseline vs trained agent")
-    plt.legend()
+    plt.title(
+        "Per-task score: untrained baselines vs GRPO-trained adapter\n"
+        "GRPO unlocks `detect_breaking_changes` (0.01 → 0.67) — neither baseline can do it"
+    )
+    plt.legend(loc="upper right", fontsize=9)
     plt.grid(alpha=0.3, axis="y")
     plt.tight_layout()
     out = RESULTS / "before_after.png"

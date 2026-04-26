@@ -1,13 +1,14 @@
 {
-  "model": "pushpam14/api-contract-validator-grpo-7b",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
   "benchmark": "api_contract_validator",
+  "date": "2026-04-26",
   "scores": {
     "find_type_mismatches": 0.75,
     "validate_nested_objects": 0.5714,
-    "detect_breaking_changes": 0.6667,
-    "validate_response_schema": 0.3,
-    "validate_cross_field_constraints": 0.2857,
-    "validate_auth_request": 0.3333,
+    "detect_breaking_changes": 0.01,
+    "validate_response_schema": 0.7,
+    "validate_cross_field_constraints": 0.4286,
+    "validate_auth_request": 0.8333,
     "trace_downstream_blast_radius": 0.99,
     "propose_backward_compat_fix": 0.99,
     "multi_service_cascade_fix": 0.99
@@ -17,136 +18,151 @@
       "task": "find_type_mismatches",
       "score": 0.75,
       "steps": 10,
-      "success": false,
+      "success": true,
       "rewards": [
         1.0,
         -0.1,
         1.0,
-        -0.1,
-        -0.1,
         1.0,
+        -0.3,
+        -0.3,
         -0.1,
         -0.1,
         -0.1,
         -0.1
-      ],
-      "computed_from": "rewards"
+      ]
     },
     {
       "task": "validate_nested_objects",
       "score": 0.5714,
       "steps": 15,
-      "success": false,
-      "rewards": [
-        1.0,
-        1.0,
-        1.0,
-        -0.3,
-        -0.3,
-        -0.3,
-        -0.1,
-        -0.1,
-        -0.1,
-        1.0,
-        -0.3,
-        -0.3,
-        -0.1,
-        -0.1,
-        -0.1
-      ],
-      "computed_from": "rewards"
-    },
-    {
-      "task": "detect_breaking_changes",
-      "score": 0.6667,
-      "steps": 20,
-      "success": false,
-      "rewards": [
-        1.0,
-        -0.3,
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
-        1.0,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.3,
-        -0.3,
-        -0.1,
-        -0.1
-      ],
-      "computed_from": "rewards"
-    },
-    {
-      "task": "validate_response_schema",
-      "score": 0.3,
-      "steps": 4,
       "success": true,
       "rewards": [
         1.0,
         1.0,
         1.0,
-        0.15
-      ],
-      "computed_from": "rewards"
+        -0.1,
+        -0.1,
+        0.3,
+        1.0,
+        -0.1,
+        -0.3,
+        -0.1,
+        -0.1,
+        -0.3,
+        -0.1,
+        -0.1,
+        -0.1
+      ]
+    },
+    {
+      "task": "detect_breaking_changes",
+      "score": 0.01,
+      "steps": 20,
+      "success": false,
+      "rewards": [
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.5,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3
+      ]
+    },
+    {
+      "task": "validate_response_schema",
+      "score": 0.7,
+      "steps": 25,
+      "success": true,
+      "rewards": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        -0.1,
+        -0.1,
+        -0.1,
+        -0.1,
+        -0.1,
+        -0.1,
+        0.3,
+        -0.1,
+        -0.1,
+        -0.1,
+        -0.1,
+        -0.1,
+        1.0,
+        -0.1,
+        -0.1,
+        -0.1,
+        -0.1,
+        1.0,
+        -0.1,
+        -0.1
+      ]
     },
     {
       "task": "validate_cross_field_constraints",
-      "score": 0.2857,
+      "score": 0.4286,
       "steps": 18,
-      "success": false,
+      "success": true,
       "rewards": [
         1.0,
         1.0,
         -0.3,
         -0.3,
         -0.3,
-        -0.3,
+        -0.5,
+        1.0,
+        -0.1,
+        -0.1,
+        -0.1,
         -0.1,
         -0.1,
         -0.1,
         -0.3,
-        -0.3,
-        -0.3,
-        -0.3,
         -0.1,
-        -0.1,
-        -0.1,
+        -0.3,
         -0.1,
         -0.1
-      ],
-      "computed_from": "rewards"
+      ]
     },
     {
       "task": "validate_auth_request",
-      "score": 0.3333,
+      "score": 0.8333,
       "steps": 14,
-      "success": false,
+      "success": true,
       "rewards": [
         1.0,
+        -0.1,
+        1.0,
+        1.0,
+        -0.1,
+        1.0,
         1.0,
         -0.1,
         -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
-        -0.1,
+        -0.3,
         -0.1,
         -0.1,
         -0.1,
         -0.1
-      ],
-      "computed_from": "rewards"
+      ]
     },
     {
       "task": "trace_downstream_blast_radius",
@@ -155,8 +171,7 @@
       "success": true,
       "rewards": [
         1.6
-      ],
-      "computed_from": "rewards"
+      ]
     },
     {
       "task": "propose_backward_compat_fix",
@@ -165,8 +180,7 @@
       "success": true,
       "rewards": [
         2.0
-      ],
-      "computed_from": "rewards"
+      ]
     },
     {
       "task": "multi_service_cascade_fix",
@@ -176,8 +190,7 @@
       "rewards": [
         1.6,
         2.0
-      ],
-      "computed_from": "rewards"
+      ]
     }
   ]
 }
