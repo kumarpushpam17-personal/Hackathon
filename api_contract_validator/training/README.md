@@ -101,7 +101,7 @@ hf jobs logs <job-id> --follow
 # List recent jobs
 hf jobs list
 
-# WandB run will be auto-linked in the job logs — bookmark that URL for the README
+# WandB run will be auto-linked in the job logs; for public review, link the WandB report URL in the README
 ```
 
 ## Alternative: Colab notebook (if HF Jobs is unavailable)
@@ -183,7 +183,7 @@ cd ~/work/hackathon/hackathon-api-contract-validator
 #    - Replace each "_(after training)_" placeholder in the Before vs After
 #      table with the score from trained_scores.json
 #    - Uncomment the two `<!-- ![](results/...) -->` lines so the plots render
-#    - Add the WandB run URL in the Links section (and to the WandB row in
+#    - Add the WandB report URL in the Links section (and to the WandB row in
 #      the Training Results table)
 
 # 3. Run validation

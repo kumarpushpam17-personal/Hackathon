@@ -10,7 +10,7 @@
 |---|---|
 | **HF Job ID** | `69ed0e59d70108f37acded4e` |
 | **HF Job URL** | https://huggingface.co/jobs/pushpam14/69ed0e59d70108f37acded4e |
-| **WandB run** (public) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb |
+| **WandB report** (public) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb |
 | **Trained adapter** (public) | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
 
 ## Training configuration
@@ -67,7 +67,7 @@ Saved model to https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
 [INFO] uploading reward_curve.png -> .../training_artifacts/reward_curve.png
 [INFO] uploading training_state.json -> .../training_artifacts/training_state.json
 [INFO] done.
-wandb: 🚀 View run grpo-7b-l4-300steps-v3 at:
+wandb: 🚀 View report for grpo-7b-l4-300steps-v3 at:
   https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb
 ```
 
@@ -92,7 +92,7 @@ curl -sI https://huggingface.co/pushpam14/api-contract-validator-grpo-7b/resolve
 curl -sI https://huggingface.co/pushpam14/api-contract-validator-grpo-7b/resolve/main/training_artifacts/reward_curve.png | grep -i content-length
 # content-length: 138792
 
-# WandB run is public — opens in any browser
+# WandB report is public — opens in any browser
 open https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb
 ```
 

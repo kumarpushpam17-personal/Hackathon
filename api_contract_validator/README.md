@@ -55,7 +55,7 @@ This is not a static prompt benchmark. It is a runnable OpenEnv environment with
 | **Environment depth** | 9 tasks across detection, downstream impact tracing, and backward-compatible fix verification |
 | **Episode/data mix** | Seeded synthetic enterprise API scenarios: OpenAPI specs, payloads, version diffs, consumer service graphs, and migration candidates |
 | **Reward richness** | 14 independent reward signals covering correct findings, proximity, duplicates, false positives, missed consumers, malformed patches, broken consumers, and anti-spam |
-| **Training evidence** | 300 GRPO steps on Qwen2.5-7B + LoRA, public WandB run, reward curve, training state JSON, full logs, and trained adapter on Hugging Face |
+| **Training evidence** | 300 GRPO steps on Qwen2.5-7B + LoRA, public WandB report, reward curve, training state JSON, full logs, and trained adapter on Hugging Face |
 | **Before/after evaluation** | Three-way comparison: untrained Qwen2.5-72B, untrained Qwen2.5-7B, and trained Qwen2.5-7B + LoRA |
 | **Headline improvement** | `detect_breaking_changes`: 0.01 → 0.67 for the same 7B base model after GRPO |
 
@@ -372,7 +372,7 @@ Three Phase 1 tasks regressed (`validate_response_schema`, `validate_cross_field
 
 **Phase 2 / Phase 3 tasks** maintain their scores in the trained adapter — the model didn't *forget* multi-service reasoning while learning the breaking-change classification.
 
-| Phase | WandB Run | Notebook |
+| Phase | WandB Report | Notebook |
 |---|---|---|
 | GRPO main run (Qwen-7B, 300 steps) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
 | Trained adapter | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b | — |

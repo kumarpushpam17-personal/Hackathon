@@ -546,7 +546,7 @@ curl -sI https://huggingface.co/pushpam14/api-contract-validator-grpo-7b/resolve
 # expected: content-length: 162175520
 ```
 
-### Verify the WandB run is real
+### Verify the WandB report is real
 
 Open https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb — should show 300-step reward / loss / grad_norm / kl curves with timestamps from 2026-04-25 18:57.
 
