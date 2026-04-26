@@ -285,6 +285,8 @@ If you are reviewing this submission, the fastest path is:
    - HF Jobs launcher used for the submitted run: [`training/run_in_hf_jobs.py`](training/run_in_hf_jobs.py)
    - Full training instructions: [`training/README.md`](training/README.md)
 
+   If Hugging Face's notebook viewer shows a blank/white page for the `.ipynb`, open the notebook in Google Colab or download it and open with Jupyter. The real training metrics are also committed directly in [`results/reward_curve.png`](results/reward_curve.png), [`results/training_state.json`](results/training_state.json), and [`results/training_full_log.txt`](results/training_full_log.txt), so the notebook viewer is not required to verify the run.
+
 ## Setup
 
 ### Prerequisites

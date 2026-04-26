@@ -108,6 +108,8 @@ hf jobs list
 
 Open `grpo_colab.ipynb` in Colab. Set `HF_TOKEN` and `WANDB_API_KEY` in the secrets pane. Hit **Runtime → Run all**. Free T4, but disconnects after 3 hours and only fits the 1.5B model.
 
+If Hugging Face's notebook viewer shows a blank/white page for the `.ipynb`, open it in Google Colab or download it and open with Jupyter. The submitted metrics are not stored as heavy notebook outputs; they are available through the public WandB report and the committed `results/reward_curve.png`, `results/training_state.json`, and `results/training_full_log.txt` files.
+
 The notebook is intentionally committed without outputs so reviewers can run it cleanly. The completed submitted run outputs are committed under `api_contract_validator/results/` and linked from the main README.
 
 ## Alternative: Local GPU
