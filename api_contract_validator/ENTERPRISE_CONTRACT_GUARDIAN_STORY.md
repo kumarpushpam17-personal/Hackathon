@@ -525,24 +525,23 @@ The project has a clear judge-facing story:
 
 - Problem: API changes break downstream services because teams lack automated impact reasoning.
 - Environment: OpenEnv simulation with specs, payloads, service graphs, and deterministic grading.
-- Results: baseline scores exist, and trained reward plots should be added after the GRPO run.
+- Results: three-way comparison exists across Qwen2.5-72B baseline, Qwen2.5-7B baseline, and Qwen2.5-7B + LoRA after GRPO.
 - Why it matters: platform teams, API gateway teams, CI/CD pipelines, and microservice organizations need this.
 
 The novelty is not "schema validation." The novelty is turning multi-service contract impact analysis into a trainable RL environment.
 
-## 19. What Still Must Be Added Before Final Submission
+## 19. Final Submission Links
 
-The environment and tests are in good shape, but the final submission needs visible training evidence:
+The final submission materials are public:
 
-- Commit `results/reward_curve.png`.
-- Commit `results/before_after.png`.
-- Generate and commit `trained_scores.json`.
-- Replace README trained-score placeholders.
-- Add the public WandB run link, if WandB is used.
-- Add the YouTube demo video or HuggingFace mini-blog link.
+- Live OpenEnv Space: https://huggingface.co/spaces/pushpam14/api-contract-validator
+- Public endpoint: https://pushpam14-api-contract-validator.hf.space
+- GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
+- HF mini-blog / model-card writeup: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
+- Trained LoRA adapter: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
+- WandB training run: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k
+- Training proof: [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md)
 
-Without those artifacts, the project is strong on innovation and story, but weaker on the 20 percent "Improvement in Rewards" judging criterion.
+## 20. Final Pitch Version
 
-## 20. Two-Minute Pitch Version
-
-"Enterprise API breaks rarely happen because one schema is invalid. They happen because a small producer change silently breaks downstream consumers. Our environment trains an agent to handle the full platform-engineering workflow: detect the contract violation, trace the blast radius across services, propose a backward-compatible migration, and validate that migration against every consumer contract. The reward is composable: correct violations, correct consumers, missed consumers, false flags, malformed fixes, and cross-consumer compatibility are all scored independently. This teaches a model a real enterprise skill that standard LLMs do not reliably perform today."
+"Enterprise API breaks rarely happen because one schema is invalid. They happen because a small producer change silently breaks downstream consumers. Enterprise Contract Guardian turns that real platform-engineering workflow into an OpenEnv RL environment: detect the contract violation, trace the blast radius across services, propose a backward-compatible migration, and validate that migration against every consumer contract. The key result is targeted learning: both untrained Qwen2.5-72B and untrained Qwen2.5-7B scored 0.01 on `detect_breaking_changes`; after 300 GRPO steps, Qwen2.5-7B + LoRA scored 0.67. That is the behavior this environment teaches."
