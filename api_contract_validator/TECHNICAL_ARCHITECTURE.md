@@ -39,7 +39,7 @@ flowchart TB
     end
 
     subgraph WandB["📊 WandB"]
-        Run["openenv-contract-guardian/runs/gch0eg3k<br/>(public, immutable, 300 steps)"]
+        Run["openenv-contract-guardian (public WandB Report)<br/>300 steps · immutable · timestamped"]
     end
 
     subgraph Inference["🔌 LLM Providers"]
@@ -118,7 +118,7 @@ Every dependency, what it does, and why we chose it.
 | **HuggingFace Hub** | Hosts trained adapter + training artifacts (reward_curve.png, training_state.json, trained_scores.json) | Free for public models; `HfApi.upload_file` from inside the training job |
 | **HuggingFace Jobs** | On-demand cloud GPU runtime (used L4 24 GB at $0.80/hr) | Faster + more reliable than Colab Free; doesn't time out; supports inline PEP-723 dependency declarations via `hf jobs uv run` |
 | **HF Inference Providers (router)** | Serverless inference for Qwen2.5-72B / 7B baselines | Free tier covers ~9 tasks of ~10 calls each; no GPU needed for baselines |
-| **WandB** | Public, immutable experiment tracking | Free; satisfies "experimental tracking turned on" requirement; URL: `wandb.ai/.../runs/gch0eg3k` |
+| **WandB** | Public, immutable experiment tracking | Free; satisfies "experimental tracking turned on" requirement. Public report (share-via-link): see [WandB Report URL in README](README.md#links) |
 | **Docker** | Containerization for the OpenEnv server | Required by HF Spaces (`sdk: docker` in README frontmatter); reproducible build |
 | **GitHub** | Source-of-truth + the URL the HF Job clones from | Public, free; supports raw-content URLs for plot embeds |
 | **`uv` (PyPI installer used in HF Jobs)** | Fast Python dep installer (~500 ms for 177 packages) | Default tool for `hf jobs uv run`; PEP-723 inline deps make our launcher self-contained |
@@ -548,7 +548,7 @@ curl -sI https://huggingface.co/pushpam14/api-contract-validator-grpo-7b/resolve
 
 ### Verify the WandB run is real
 
-Open https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k — should show 300-step reward / loss / grad_norm / kl curves with timestamps from 2026-04-25 18:57.
+Open https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb — should show 300-step reward / loss / grad_norm / kl curves with timestamps from 2026-04-25 18:57.
 
 ### Re-run inference
 

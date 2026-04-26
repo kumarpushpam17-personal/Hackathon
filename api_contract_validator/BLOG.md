@@ -40,7 +40,7 @@ We built a hosted OpenEnv environment called **Enterprise Contract Guardian**.
 Live environment: https://huggingface.co/spaces/pushpam14/api-contract-validator  
 Primary HF Space writeup: https://huggingface.co/spaces/pushpam14/api-contract-validator/blob/main/BLOG.md  
 Trained adapter: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b  
-Training run: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k  
+Training run: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb  
 Source code: https://github.com/kumarpushpam17-personal/Hackathon  
 GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
 
@@ -160,7 +160,7 @@ We trained Qwen2.5-7B-Instruct (4-bit) with LoRA r=16 for 300 GRPO steps on a si
 
 The important detail: the reward function is the **environment's own grader**, called step by step. This is not supervised fine-tuning on a static dataset. The model samples actions, sends them to the OpenEnv environment, receives reward, and GRPO updates the LoRA adapter from that feedback.
 
-[Public WandB run: `grpo-7b-l4-300steps-v3`](https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k)
+[Public WandB run: `grpo-7b-l4-300steps-v3`](https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb)
 
 ## 5) Results
 
@@ -196,7 +196,7 @@ The training run is backed by public, reproducible artifacts:
 
 | Artifact | Link |
 |---|---|
-| Public WandB run | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k |
+| Public WandB run | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb |
 | Training proof summary | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/TRAINING_RUN_PROOF.md |
 | Full training log | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/training_full_log.txt |
 | Training state JSON | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/training_state.json |
@@ -224,7 +224,7 @@ There is no existing RL benchmark for multi-service contract reasoning. This is 
 - **Live environment**: https://huggingface.co/spaces/pushpam14/api-contract-validator
 - **Primary HF Space writeup**: https://huggingface.co/spaces/pushpam14/api-contract-validator/blob/main/BLOG.md
 - **Trained adapter**: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
-- **WandB run**: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k
+- **WandB run**: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb
 - **GitHub**: https://github.com/kumarpushpam17-personal/Hackathon
 - **GitHub README**: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
 - **Story doc + technical guide**: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/ENTERPRISE_CONTRACT_GUARDIAN_STORY.md

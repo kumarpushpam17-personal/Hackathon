@@ -10,7 +10,7 @@
 |---|---|
 | **HF Job ID** | `69ed0e59d70108f37acded4e` |
 | **HF Job URL** | https://huggingface.co/jobs/pushpam14/69ed0e59d70108f37acded4e |
-| **WandB run** (public) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k |
+| **WandB run** (public) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb |
 | **Trained adapter** (public) | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
 
 ## Training configuration
@@ -68,7 +68,7 @@ Saved model to https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
 [INFO] uploading training_state.json -> .../training_artifacts/training_state.json
 [INFO] done.
 wandb: 🚀 View run grpo-7b-l4-300steps-v3 at:
-  https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k
+  https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb
 ```
 
 The full unfiltered log (3,534 lines, includes every per-step metric, every dependency download, every weight upload) is in [`training_full_log.txt`](training_full_log.txt) in this directory.
@@ -93,7 +93,7 @@ curl -sI https://huggingface.co/pushpam14/api-contract-validator-grpo-7b/resolve
 # content-length: 138792
 
 # WandB run is public — opens in any browser
-open https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k
+open https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb
 ```
 
 WandB shows the full live training metrics — every step's reward, loss, gradient norm, KL divergence, and completion lengths. Cannot be faked or post-edited.

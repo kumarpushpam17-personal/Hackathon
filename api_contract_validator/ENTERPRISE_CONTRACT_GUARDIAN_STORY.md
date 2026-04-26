@@ -542,7 +542,7 @@ The final submission materials are public:
 - HF mini-blog writeup (separate MD in Space): https://huggingface.co/spaces/pushpam14/api-contract-validator/blob/main/BLOG.md
 - Trained adapter model-card writeup: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
 - Trained LoRA adapter: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
-- WandB training run: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k
+- WandB training run: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb
 - Training proof: [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md)
 
 ## 20. Final Pitch Version

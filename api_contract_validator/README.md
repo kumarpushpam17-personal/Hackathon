@@ -374,7 +374,7 @@ Three Phase 1 tasks regressed (`validate_response_schema`, `validate_cross_field
 
 | Phase | WandB Run | Notebook |
 |---|---|---|
-| GRPO main run (Qwen-7B, 300 steps) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
+| GRPO main run (Qwen-7B, 300 steps) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
 | Trained adapter | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b | — |
 
 See [`training/README.md`](training/README.md) for the three ways to run the pipeline (HF Jobs / Colab / local).
@@ -399,7 +399,7 @@ This is a genuinely underexplored domain in RL/LLM training — no prior benchma
 | Live env endpoint | https://pushpam14-api-contract-validator.hf.space |
 | Health check | https://pushpam14-api-contract-validator.hf.space/health |
 | Trained LoRA adapter | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
-| WandB training run (300 steps) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k |
+| WandB training run (300 steps) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb |
 | Training proof + full logs | [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md) |
 | Training Notebook (Colab) | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
 | Story + Technical Guide | [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) |
