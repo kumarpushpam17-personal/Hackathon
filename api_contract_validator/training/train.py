@@ -405,6 +405,14 @@ def main() -> None:
 
     print("[INFO] done.")
 
+    # Force a clean exit. The `websockets` library emits a non-zero exit
+    # status from its __del__ finalizer when the event loop has been
+    # closed, which makes HF Jobs mark the job ERROR even though every
+    # artefact (adapter, reward_curve, training_state) was uploaded. Use
+    # os._exit(0) to bypass interpreter shutdown finalizers entirely.
+    import os as _os  # local alias to avoid shadowing module-level os
+    _os._exit(0)
+
 
 if __name__ == "__main__":
     main()
