@@ -17,6 +17,12 @@ pinned: false
 
 > 📛 **Naming**: **Enterprise Contract Guardian** is the product name. The codename in URLs and source paths is `api-contract-validator` (HF Space slug, Python package, Hub adapter repo). Both refer to the same artifact — the HF Spaces title now reflects the product name; the URLs were not changed because they would invalidate every linked artefact.
 
+> 🔗 **Two URLs explained** — for judges:
+> - **Repo URL** (browse files, README, notebook, code, results): https://huggingface.co/spaces/pushpam14/api-contract-validator
+> - **App endpoint** (the running OpenEnv server, used by `/reset`, `/step`, `/state`): https://pushpam14-api-contract-validator.hf.space
+>
+> They are the same Space — HuggingFace exposes the file browser at `huggingface.co/spaces/<user>/<name>` and the running app at `<user>-<name>.hf.space`. **For automated graders**, point at the app endpoint. **For browsing the codebase, notebook, or training artefacts**, use the repo URL. All training artefacts (`results/reward_curve.png`, `results/before_after.png`, `trained_scores.json`, the Colab notebook, the full training log, the trained LoRA adapter at [`pushpam14/api-contract-validator-grpo-7b`](https://huggingface.co/pushpam14/api-contract-validator-grpo-7b)) are committed to **both** the GitHub repo and the HF Space repo.
+
 An OpenEnv RL environment that trains agents to do what senior platform engineers do when an API breaks in production: **detect the violation, trace which downstream services are affected, propose a backward-compatible fix, and verify the fix doesn't cascade**.
 
 > 📖 **Read this first**: [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) — full product narrative + technical guide with diagrams, two real-world incident walkthroughs, complete reward criteria, and the training loop.
