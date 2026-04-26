@@ -118,12 +118,18 @@ def main() -> None:
             add_generation_prompt=True,
             return_tensors="pt",
         ).to(model.device)
+        # Temperature is env-configurable so we can tune sampling diversity.
+        # 0.2 was too deterministic — the trained model kept reporting the
+        # same violation across steps. 0.7 introduces enough variance for
+        # the agent to find new violations after the first few.
+        temperature = float(os.environ.get("TEMPERATURE", "0.7"))
         with torch.no_grad():
             output_ids = model.generate(
                 input_ids,
                 max_new_tokens=384,
-                temperature=0.2,
+                temperature=temperature,
                 do_sample=True,
+                top_p=0.9,
                 pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
             )
         text = tokenizer.decode(

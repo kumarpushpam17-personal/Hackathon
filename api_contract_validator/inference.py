@@ -75,9 +75,9 @@ MAX_STEPS_PER_TASK = {
     "multi_service_cascade_fix": 40,
 }
 MAX_CONSECUTIVE_FAILURES = 3  # stop retrying same field after this many -0.3 rewards
-TEMPERATURE = 0.2
-MAX_TOKENS = 1024
-SUCCESS_SCORE_THRESHOLD = 0.3
+TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "1024"))
+SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.3"))
 
 
 # ---------------------------------------------------------------------------
