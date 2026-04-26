@@ -141,6 +141,21 @@ The training curve and three-way before/after comparison are committed in the Gi
 
 ![Before vs after](https://raw.githubusercontent.com/kumarpushpam17-personal/Hackathon/main/api_contract_validator/results/before_after.png)
 
+### Proof and artifacts
+
+The training run is backed by public, reproducible artifacts:
+
+| Artifact | Link |
+|---|---|
+| Public WandB run | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k |
+| Training proof summary | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/TRAINING_RUN_PROOF.md |
+| Full training log | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/training_full_log.txt |
+| Training state JSON | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/training_state.json |
+| Trained scores | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/trained_scores.json |
+| 7B baseline scores | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/baseline_7b_scores.json |
+| 72B baseline scores | https://github.com/kumarpushpam17-personal/Hackathon/blob/main/baseline_72b_v2_scores.json |
+| Trained LoRA adapter | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
+
 ## 6) The honest trade-off
 
 GRPO heavily reinforced the high-reward action patterns from training (Phase 2/3 episodes give +2.0 fix rewards vs Phase 1's +1.0 per violation). The trained model now over-applies these patterns to Phase 1 tasks where they don't fit, causing regressions on `validate_response_schema`, `validate_cross_field_constraints`, and `validate_auth_request`. With task-balanced training and a "don't repeat" reward signal, this would close. But the headroom-task win is real and reproducible.
