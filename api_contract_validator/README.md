@@ -217,6 +217,51 @@ Multiple **independent** reward signals (per `help_guide.md §7`) — reduces re
 
 **Final episode score** = weighted blend of phase scores; see `server/rewards.py`.
 
+## How To Run And See Output
+
+If you are reviewing this submission, the fastest path is:
+
+1. **Try the hosted environment**:
+
+   ```bash
+   curl https://pushpam14-api-contract-validator.hf.space/health
+
+   curl -X POST https://pushpam14-api-contract-validator.hf.space/reset \
+        -H "Content-Type: application/json" \
+        -d '{"task_name":"trace_downstream_blast_radius","seed":1}'
+   ```
+
+2. **Inspect the committed training outputs**:
+
+   - Reward curve: [`results/reward_curve.png`](results/reward_curve.png)
+   - Before/after chart: [`results/before_after.png`](results/before_after.png)
+   - Training proof: [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md)
+   - Full training log: [`results/training_full_log.txt`](results/training_full_log.txt)
+   - Score files: [`../baseline_72b_v2_scores.json`](../baseline_72b_v2_scores.json), [`../baseline_7b_scores.json`](../baseline_7b_scores.json), [`../trained_scores.json`](../trained_scores.json)
+
+3. **Re-run locally if desired**:
+
+   ```bash
+   git clone https://github.com/kumarpushpam17-personal/Hackathon
+   cd Hackathon/api_contract_validator
+   pip install -e .
+   uvicorn server.app:app --host 0.0.0.0 --port 7860
+   ```
+
+   In another terminal:
+
+   ```bash
+   curl http://localhost:7860/health
+   openenv validate
+   ```
+
+4. **Re-run inference or training**:
+
+   - Baseline/trained inference: [`inference.py`](inference.py)
+   - Colab training notebook: [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb)
+   - HF Jobs launcher used for the submitted run: [`training/run_in_hf_jobs.py`](training/run_in_hf_jobs.py)
+   - Full training instructions: [`training/README.md`](training/README.md)
+
 ## Setup
 
 ### Prerequisites
@@ -228,8 +273,8 @@ Multiple **independent** reward signals (per `help_guide.md §7`) — reduces re
 ### Local Development
 
 ```bash
-git clone <your-repo-url>
-cd api_contract_validator
+git clone https://github.com/kumarpushpam17-personal/Hackathon
+cd Hackathon/api_contract_validator
 pip install -e .
 
 uvicorn server.app:app --host 0.0.0.0 --port 7860 --reload

@@ -8,12 +8,16 @@ Re-runnable training pipeline for the API Contract Validator environment, using 
 |---|---|
 | `baseline.py` | Run the untrained model on every task; write `baseline_scores.json` |
 | `train.py` | GRPO training loop — connects to env, rolls out, trains LoRA |
+| `run_in_hf_jobs.py` | Self-bootstrapping HF Jobs launcher used for the submitted run |
+| `run_trained_inference.py` | HF Jobs inference script for the trained LoRA adapter |
 | `plot.py` | Build `reward_curve.png` and `before_after.png` for the README |
 | `grpo_colab.ipynb` | One-click Colab notebook (open in Colab → Runtime → Run all) |
 
 ## Recommended path — HF Jobs (best for the finale)
 
-HF Jobs runs in the cloud, doesn't disconnect, and bills against your $30 hackathon credit. Three runs total cost ~$3 of $60 if you have credits across two accounts.
+HF Jobs runs in the cloud, doesn't disconnect, and bills against your hackathon credit.
+
+Important: `hf jobs uv run` uploads exactly one Python file. The submitted run therefore used [`run_in_hf_jobs.py`](run_in_hf_jobs.py), which clones this repo inside the job and then calls `training.train.main()`. This avoids import errors from sibling modules such as `inference.py`, `client.py`, and `server/*`.
 
 ### Run 1 — Smoke test (~$0.30, 5 min)
 
@@ -21,15 +25,16 @@ Verifies the pipeline works end-to-end before committing to a long run.
 
 ```bash
 hf jobs uv run \
-    --with "trl" --with "unsloth" --with "openenv-core[core]>=0.2.2" \
-    --with "wandb" --with "matplotlib" --with "datasets" --with "openai" \
     --flavor t4-small \
     -s HF_TOKEN -s WANDB_API_KEY \
     -e BASE_MODEL=unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit \
     -e ENV_URL=https://pushpam14-api-contract-validator.hf.space \
     -e MAX_STEPS=10 \
+    -e NUM_GENERATIONS=2 \
+    -e GIT_REF=main \
     -e WANDB_RUN=smoke-test \
-    -- python training/train.py
+    -d \
+    api_contract_validator/training/run_in_hf_jobs.py
 ```
 
 If this errors, **don't proceed**. Fix the error, re-run smoke test until it returns clean.
@@ -40,8 +45,6 @@ Best balance of model size, speed, and cost for our $60 budget. L4 has 24 GB whi
 
 ```bash
 hf jobs uv run \
-    --with "trl" --with "unsloth" --with "openenv-core[core]>=0.2.2" \
-    --with "wandb" --with "matplotlib" --with "datasets" --with "openai" \
     --flavor l4x1 \
     -s HF_TOKEN -s WANDB_API_KEY \
     -e BASE_MODEL=unsloth/Qwen2.5-7B-Instruct-bnb-4bit \
@@ -53,7 +56,9 @@ hf jobs uv run \
     -e WANDB_PROJECT=openenv-contract-guardian \
     -e WANDB_RUN=grpo-7b-l4-300steps \
     -e PUSH_TO_HUB=pushpam14/api-contract-validator-grpo-7b \
-    -- python training/train.py
+    -e GIT_REF=main \
+    -d \
+    api_contract_validator/training/run_in_hf_jobs.py
 ```
 
 ### Run 3 — Insurance run on second account (~$0.40, ~45 min)
@@ -63,8 +68,6 @@ Use your second HF account in parallel as a safety net. Smaller model = faster, 
 ```bash
 # Use your SECOND HF account's token here
 hf jobs uv run \
-    --with "trl" --with "unsloth" --with "openenv-core[core]>=0.2.2" \
-    --with "wandb" --with "matplotlib" --with "datasets" --with "openai" \
     --flavor t4-small \
     -s HF_TOKEN -s WANDB_API_KEY \
     -e BASE_MODEL=unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit \
@@ -72,7 +75,9 @@ hf jobs uv run \
     -e MAX_STEPS=200 \
     -e WANDB_RUN=grpo-1.5b-t4-200steps \
     -e PUSH_TO_HUB=YOUR_SECOND_ACCOUNT/api-contract-validator-grpo-1.5b \
-    -- python training/train.py
+    -e GIT_REF=main \
+    -d \
+    api_contract_validator/training/run_in_hf_jobs.py
 ```
 
 ### Hardware ↔ model size cheatsheet
@@ -102,6 +107,8 @@ hf jobs list
 ## Alternative: Colab notebook (if HF Jobs is unavailable)
 
 Open `grpo_colab.ipynb` in Colab. Set `HF_TOKEN` and `WANDB_API_KEY` in the secrets pane. Hit **Runtime → Run all**. Free T4, but disconnects after 3 hours and only fits the 1.5B model.
+
+The notebook is intentionally committed without outputs so reviewers can run it cleanly. The completed submitted run outputs are committed under `api_contract_validator/results/` and linked from the main README.
 
 ## Alternative: Local GPU
 
