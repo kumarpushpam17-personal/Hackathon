@@ -379,7 +379,7 @@ sequenceDiagram
     Agent->>Env: reset(trace_downstream_blast_radius, seed=1)
     Env->>Sg: get_cascade_scenario(seed=1)
     Sg-->>Env: CascadeScenario (UserService email rename + 4 consumers)
-    Note right of Env: ground_truth_affected hidden;<br/>agent only sees consumer declarations
+    Note right of Env: ground_truth_affected hidden — agent only sees consumer declarations
     Env-->>Agent: obs (public_observation, no ground truth)
 
     Agent->>Env: step(trace_impact, [Orders, Billing, Notifications])
