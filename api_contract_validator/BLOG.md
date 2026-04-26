@@ -103,20 +103,41 @@ An OpenEnv environment with three phases that mirror what a senior platform engi
 2. **Trace** — identify which downstream consumers break (the "blast radius")
 3. **Fix & verify** — propose a backward-compatible migration and validate it against every consumer's spec
 
-Each episode places the agent inside a simulated enterprise (3–5 microservices, each owning an OpenAPI spec, each declaring which fields it consumes from upstream). When the producer ships a breaking change, the agent has to figure out who breaks — but the ground-truth answer is hidden. The agent must reason from the consumer declarations.
+Each episode places the agent inside a simulated enterprise (3–5 microservices, each owning an OpenAPI spec, each declaring which fields it consumes from upstream):
+
+```text
+Enterprise Service Graph (one of two cascade scenarios)
+┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+│ UserService  │ ─────▶ │ OrdersService │ ─────▶ │BillingService│
+└──────────────┘        └──────────────┘        └──────────────┘
+       │                        │
+       ▼                        ▼
+┌───────────────────┐    ┌──────────────────┐
+│NotificationsSvc   │    │  AnalyticsETL    │
+└───────────────────┘    └──────────────────┘
+```
+
+When the producer ships a breaking change, the agent has to figure out who breaks — but the ground-truth answer is hidden. The agent must reason from the consumer declarations.
 
 Then the agent has to propose a fix. Five backward-compat strategies are accepted: `field_alias`, `version_bump`, `deprecation_window`, `dual_write`, `consumer_patch`. The fix is validated against every consumer in the graph. If even one consumer would still break, the agent gets penalized.
 
+### The 9 tasks at a glance
+
+| Task | Phase | Tests |
+|---|:-:|---|
+| `find_type_mismatches` | 1 | Top-level type/missing/enum violations (4 violations, 12-pool seed variance, 495 combos) |
+| `validate_nested_objects` | 1 | Deep nested-path traversal (7 violations, 2 scenario variants) |
+| `detect_breaking_changes` | 1 | v1 → v2 spec diff: removed/renamed fields, narrowed enums, type changes (9 violations) |
+| `validate_response_schema` | 1 | Subtle format/pattern/range/enum errors in responses (10 violations, 2 variants) |
+| `validate_cross_field_constraints` | 1 | Arithmetic + date ordering + conditional rules across fields (7 violations) |
+| `validate_auth_request` | 1 | OAuth2/API-key constraints, MFA patterns, IP format, rate limits (6 violations, 2 variants) |
+| `trace_downstream_blast_radius` | 2 | Identify every consumer broken by a producer API change |
+| `propose_backward_compat_fix` | 3 | Propose a migration patch that validates against all consumer specs |
+| `multi_service_cascade_fix` | 2+3 | Full workflow: trace → fix → verify in one episode |
+
 ### Agent interface
 
-The agent interacts through normal OpenEnv-style calls:
-
-- `reset(task_name, seed)` starts a task episode,
-- `state()` returns the current observation,
-- `step(action)` submits an action and receives reward,
-- `close()` ends the session.
-
-The action space is intentionally small and inspectable: report a violation, trace an impacted consumer, propose a fix, or mark the task done. This keeps the environment easy to run while still requiring non-trivial reasoning.
+The agent interacts through normal OpenEnv-style calls (`reset`, `step`, `state`, `close`). The action space is intentionally small and inspectable: report a violation (Phase 1), trace impacted consumers (Phase 2), or propose/validate a fix (Phase 3). Full action and observation schemas are in the [GitHub README](https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md#action-space).
 
 ## 3) Reward signal — composable rubrics, 14 independent components
 
