@@ -332,6 +332,7 @@ This is a genuinely underexplored domain in RL/LLM training — no prior benchma
 | Health check | https://pushpam14-api-contract-validator.hf.space/health |
 | Trained LoRA adapter | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
 | WandB training run (300 steps) | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k |
+| Training proof + full logs | [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md) |
 | Training Notebook (Colab) | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
 | Story + Technical Guide | [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) |
 | GitHub repo | https://github.com/kumarpushpam17-personal/Hackathon |
