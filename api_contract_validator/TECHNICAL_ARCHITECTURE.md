@@ -379,15 +379,16 @@ sequenceDiagram
     Agent->>Env: reset(trace_downstream_blast_radius, seed=1)
     Env->>Sg: get_cascade_scenario(seed=1)
     Sg-->>Env: CascadeScenario (UserService email rename + 4 consumers)
-    Env-->>Agent: obs<br/>(public_observation = producer specs +<br/>consumer declarations; ground_truth_affected hidden)
+    Note right of Env: ground_truth_affected hidden;<br/>agent only sees consumer declarations
+    Env-->>Agent: obs (public_observation, no ground truth)
 
-    Agent->>Env: step({action_type: trace_impact,<br/>affected_services: [Orders, Billing, Notifications]})
+    Agent->>Env: step(trace_impact, [Orders, Billing, Notifications])
     Env->>Tr: trace_impact(scenario, predicted)
     Tr->>Tr: compute hits / missed / false_flags / unknown
     Tr-->>Env: ImpactTraceResult
     Env->>Ru: phase2_trace_rubric(result)
     Ru-->>Env: Rubric (per-consumer signals)
-    Env-->>Agent: obs (reward = sum(rubric), done=true if perfect or steps exhausted)
+    Env-->>Agent: obs (reward = sum(rubric), done if perfect or steps exhausted)
 ```
 
 ### Phase 3 — Fix proposal (propose_backward_compat_fix)
@@ -405,7 +406,7 @@ sequenceDiagram
     Sg-->>Env: CascadeScenario + acceptable_fix_strategies
     Env-->>Agent: obs (detected_violation + consumer_specs visible)
 
-    Agent->>Env: step({action_type: propose_fix,<br/>fix_strategy: field_alias,<br/>spec_patch: {aliases: {email: email_address}}})
+    Agent->>Env: step(propose_fix, field_alias, {aliases: {email: email_address}})
     Env->>Fv: validate_fix(scenario, strategy, patch)
     loop per consumer
         Fv->>Fv: _STRATEGY_CHECKERS[strategy](consumer)
