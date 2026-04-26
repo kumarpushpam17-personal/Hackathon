@@ -537,7 +537,8 @@ The final submission materials are public:
 - Live OpenEnv Space: https://huggingface.co/spaces/pushpam14/api-contract-validator
 - Public endpoint: https://pushpam14-api-contract-validator.hf.space
 - GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
-- HF mini-blog / model-card writeup: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
+- HF mini-blog writeup (separate MD in Space): https://huggingface.co/spaces/pushpam14/api-contract-validator/blob/main/BLOG.md
+- Trained adapter model-card writeup: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
 - Trained LoRA adapter: https://huggingface.co/pushpam14/api-contract-validator-grpo-7b
 - WandB training run: https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k
 - Training proof: [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md)

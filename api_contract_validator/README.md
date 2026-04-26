@@ -336,7 +336,8 @@ This is a genuinely underexplored domain in RL/LLM training — no prior benchma
 | Training Notebook (Colab) | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
 | Story + Technical Guide | [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) |
 | GitHub repo | https://github.com/kumarpushpam17-personal/Hackathon |
-| HF mini-blog / model-card writeup | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
+| HF mini-blog writeup (separate MD in Space) | [`BLOG.md`](BLOG.md) |
+| Trained adapter model card | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
 
 Quick test:
 
