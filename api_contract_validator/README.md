@@ -1,5 +1,5 @@
 ---
-title: API Contract Validator
+title: Enterprise Contract Guardian
 emoji: 📋
 colorFrom: blue
 colorTo: green
@@ -14,6 +14,8 @@ pinned: false
 
 > **Meta PyTorch OpenEnv Hackathon × Scaler School of Technology — Grand Finale Submission**
 > **Theme #3.1**: World Modeling → Professional Tasks · ⭐ **Scaler AI Labs bonus track**: Multi-App RL Environment for Enterprise Workflows
+
+> 📛 **Naming**: **Enterprise Contract Guardian** is the product name. The codename in URLs and source paths is `api-contract-validator` (HF Space slug, Python package, Hub adapter repo). Both refer to the same artifact — the HF Spaces title now reflects the product name; the URLs were not changed because they would invalidate every linked artefact.
 
 An OpenEnv RL environment that trains agents to do what senior platform engineers do when an API breaks in production: **detect the violation, trace which downstream services are affected, propose a backward-compatible fix, and verify the fix doesn't cascade**.
 
