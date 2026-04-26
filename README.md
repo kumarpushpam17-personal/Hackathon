@@ -19,7 +19,7 @@ Start with the full submission README:
 | HF mini-blog writeup | [`api_contract_validator/BLOG.md`](api_contract_validator/BLOG.md) |
 | Training proof + logs | [`api_contract_validator/results/TRAINING_RUN_PROOF.md`](api_contract_validator/results/TRAINING_RUN_PROOF.md) |
 | Trained adapter | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |
-| WandB training run | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/runs/gch0eg3k |
+| WandB training report | https://wandb.ai/pushpamsubscriptions-inn/openenv-contract-guardian/reports/Enterprise-Contract-Guardian-GRPO-training-Qwen-7B-LoRA-300-steps---VmlldzoxNjY3MTAxMA?accessToken=3dhumexjta1umyk04rq6dx47iww4t25utt3j0x7063b7pvzzibp8jah29grhlwpb |
 
 ## Headline Result
 
