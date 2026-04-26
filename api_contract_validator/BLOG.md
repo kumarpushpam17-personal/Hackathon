@@ -46,6 +46,18 @@ GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/ap
 
 The end result is a training environment where an LLM agent interacts with a simulated enterprise API ecosystem and learns to reason about contract changes, downstream consumers, and backward-compatible fixes.
 
+## Reviewer quick path
+
+If you only have a few minutes:
+
+1. Open the live environment: https://huggingface.co/spaces/pushpam14/api-contract-validator
+2. Read the headline result in [Section 5](#5-results): `detect_breaking_changes` improves from **0.01 → 0.67** after GRPO.
+3. Inspect the two committed plots: reward curve and three-way before/after comparison.
+4. Verify training proof: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/results/TRAINING_RUN_PROOF.md
+5. Reproduce one live episode with the `curl` command in [Section 8](#8-try-it-yourself).
+
+For full setup, action schema, reward tables, and local run instructions, use the GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
+
 ## What makes this submission strong
 
 This is not a static prompt benchmark. It is a runnable OpenEnv environment with hidden ground truth, stateful episodes, objective rewards, real training, and public proof artifacts.
