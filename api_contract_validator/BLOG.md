@@ -198,4 +198,6 @@ That is exactly why this environment matters. It creates a repeatable training l
 
 ## Acknowledgements
 
-Built with [`openenv-core`](https://github.com/meta-pytorch/openenv), [`trl`](https://huggingface.co/docs/trl), [`unsloth`](https://github.com/unslothai/unsloth), and the OpenEnv composable rubric pattern. Thanks to Meta PyTorch and Scaler School of Technology for the hackathon, and to the OpenEnv team for the framework.
+Built with [`openenv-core`](https://github.com/meta-pytorch/openenv), [`trl`](https://huggingface.co/docs/trl), [`unsloth`](https://github.com/unslothai/unsloth), Hugging Face Spaces, Hugging Face Jobs, Hugging Face Hub, and the OpenEnv composable rubric pattern.
+
+Thanks to Meta PyTorch and Scaler School of Technology for the hackathon, Hugging Face for the hosting/training infrastructure, and the OpenEnv team for the framework.
