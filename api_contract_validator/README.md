@@ -25,7 +25,9 @@ pinned: false
 
 An OpenEnv RL environment that trains agents to do what senior platform engineers do when an API breaks in production: **detect the violation, trace which downstream services are affected, propose a backward-compatible fix, and verify the fix doesn't cascade**.
 
-> 📖 **Read this first**: [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) — full product narrative + technical guide with diagrams, two real-world incident walkthroughs, complete reward criteria, and the training loop.
+> 📖 **Read these first**:
+> - [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) — product narrative + 20-section walkthrough, mermaid diagrams, two worked incident examples
+> - [`TECHNICAL_ARCHITECTURE.md`](TECHNICAL_ARCHITECTURE.md) — every tool documented, build flow, runtime sequence diagrams, why-each-decision interview Q&A, reproducibility checklist
 
 ## The Story
 
@@ -401,6 +403,7 @@ This is a genuinely underexplored domain in RL/LLM training — no prior benchma
 | Training proof + full logs | [`results/TRAINING_RUN_PROOF.md`](results/TRAINING_RUN_PROOF.md) |
 | Training Notebook (Colab) | [`training/grpo_colab.ipynb`](training/grpo_colab.ipynb) |
 | Story + Technical Guide | [`ENTERPRISE_CONTRACT_GUARDIAN_STORY.md`](ENTERPRISE_CONTRACT_GUARDIAN_STORY.md) |
+| Tech Architecture & Build Flow | [`TECHNICAL_ARCHITECTURE.md`](TECHNICAL_ARCHITECTURE.md) |
 | GitHub repo | https://github.com/kumarpushpam17-personal/Hackathon |
 | HF mini-blog writeup (separate MD in Space) | [`BLOG.md`](BLOG.md) |
 | Trained adapter model card | https://huggingface.co/pushpam14/api-contract-validator-grpo-7b |

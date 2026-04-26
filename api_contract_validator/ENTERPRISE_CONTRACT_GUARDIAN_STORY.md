@@ -2,6 +2,8 @@
 
 This guide explains the product idea, the real-world problem, and the end-to-end solution. It is intentionally feature-first: it does not walk through every function or source file. By the end, you should understand what issue we are solving, why it matters, how the environment works, and why an RL agent can improve on it.
 
+> Looking for the **deep engineering reference**? See [`TECHNICAL_ARCHITECTURE.md`](TECHNICAL_ARCHITECTURE.md) — every dependency documented, full build flow, runtime sequence diagrams per phase, training pipeline architecture, decision log for each architecture choice, and a reproducibility checklist. This file (STORY) is the product narrative; that file is the engineering reference.
+
 ## 1. The Problem In One Story
 
 It is Friday evening. A backend engineer makes what looks like a small API cleanup:

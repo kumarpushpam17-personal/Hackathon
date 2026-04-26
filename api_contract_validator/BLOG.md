@@ -58,6 +58,8 @@ If you only have a few minutes:
 
 For full setup, action schema, reward tables, and local run instructions, use the GitHub README: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
 
+For the deep technical reference (every tool documented, build flow start-to-end, runtime sequence diagrams, decision log for each architecture choice, reproducibility commands): https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/TECHNICAL_ARCHITECTURE.md
+
 ## What makes this submission strong
 
 This is not a static prompt benchmark. It is a runnable OpenEnv environment with hidden ground truth, stateful episodes, objective rewards, real training, and public proof artifacts.
@@ -226,6 +228,7 @@ There is no existing RL benchmark for multi-service contract reasoning. This is 
 - **GitHub**: https://github.com/kumarpushpam17-personal/Hackathon
 - **GitHub README**: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/README.md
 - **Story doc + technical guide**: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/ENTERPRISE_CONTRACT_GUARDIAN_STORY.md
+- **Technical architecture (deep)**: https://github.com/kumarpushpam17-personal/Hackathon/blob/main/api_contract_validator/TECHNICAL_ARCHITECTURE.md
 
 ```bash
 # Try the live environment in 10 seconds
